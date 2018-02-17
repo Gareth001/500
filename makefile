@@ -2,18 +2,17 @@ CFLAGS = -Wall -pedantic -std=gnu99 -pthread
 
 all: server client
 
-train-job: server.o
+server: server.o
 	gcc $(CFLAGS) server.o -o server
 
-train-job.o: server.c
+server.o: server.c
 	gcc $(CFLAGS) -c server.c
 
-train-job: client.o
+client: client.o
 	gcc $(CFLAGS) client.o -o client
 
-train-job.o: client.c
+client.o: client.c
 	gcc $(CFLAGS) -c client.c
 
-	
 clean: 
 	rm server.o client.o
