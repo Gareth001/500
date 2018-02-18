@@ -54,6 +54,7 @@ typedef struct GameInfo {
 int open_listen(int port, int* listenPort);
 void process_connections(int fdServer, GameInfo* games);
 int send_to_all(char* message, GameInfo* gameInfo);
+int check_valid_username(char* user, GameInfo* gameInfo);
 
 int main(int argc, char** argv) {
 
@@ -85,7 +86,7 @@ int main(int argc, char** argv) {
     
     // attempt to listen (exits here if fail) and print
     fdServer = open_listen(port, &listenPort);
-    fprintf(stdout, "%d\n", listenPort);
+    fprintf(stdout, "Listening on %d\n", listenPort);
     
     // create game info struct and populate
     GameInfo gameInfo;
@@ -97,6 +98,15 @@ int main(int argc, char** argv) {
     // process connections
     process_connections(fdServer, &gameInfo);
 
+}
+
+// main game loop
+void game_loop(GameInfo* gameInfo) {
+
+    
+
+    // game is over. exit
+    exit(0);
 }
 
 // process connections (from the lecture with my additions)
@@ -126,9 +136,13 @@ void process_connections(int fdServer, GameInfo* gameInfo) {
             // get user name from client
             char* userBuffer = read_from_fd(fd, MAX_NAME_LENGTH);
             
-            // check username is valid, i.e. not taken before
-            /////////////////////////////////////////////////////////////////
-
+            // check username is valid, i.e. not taken before            
+            if (check_valid_username(userBuffer, gameInfo)) {
+                // send no to client for user name, and forget this connection
+                write(fd, "no\n", 3);
+                continue;
+            }
+            
             // send yes to client for user name
             write(fd, "yes\n", 4);
 
@@ -137,18 +151,20 @@ void process_connections(int fdServer, GameInfo* gameInfo) {
                 gameInfo->players, userBuffer);
             
             // add name
-            gameInfo->player[gameInfo->players].playerName = userBuffer;
+            gameInfo->player[gameInfo->players].playerName = strdup(userBuffer);
             gameInfo->player[gameInfo->players].fd = fd;
             gameInfo->players++;
             
-            // check if we are able to start the game
+            // check if we are able to start the game, or have 4 players
             if (gameInfo->players == 4) {
-                // send yes to all players, game starting
+                // send yes to all players
                 send_to_all("yes\n", gameInfo);
+                                
+                // game starting
+                game_loop(gameInfo);
                 
             }
 
-            
         } else {
             // otherwise we got illegal input. Send no.
             write(fd, "no\n", 3);
@@ -159,6 +175,20 @@ void process_connections(int fdServer, GameInfo* gameInfo) {
         free(passBuffer);
     
     }
+    
+}
+
+// returns 0 if the username has not been taken before, 1 otherwise
+int check_valid_username(char* user, GameInfo* gameInfo) {
+    for (int i = 0; i < gameInfo->players; i++) {        
+        if (strcmp(user, gameInfo->player[i].playerName) == 0) {
+            return 1;
+            
+        }
+        
+    }
+    
+    return 0;
     
 }
 
