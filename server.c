@@ -15,6 +15,8 @@
 #include <pthread.h>
 #include <stdbool.h>
 
+#include "shared.h"
+
 #define BUFFER_LENGTH 100
 #define MAX_PASS_LENGTH 20
 #define MAX_NAME_LENGTH 20
@@ -49,12 +51,9 @@ typedef struct GameInfo {
 } GameInfo;
 
 // function declaration
-int check_input_digits(int i, char* s);
 int open_listen(int port, int* listenPort);
 void process_connections(int fdServer, GameInfo* games);
-char* read_from_fd(int fd, int length);
 int send_to_all(char* message, GameInfo* gameInfo);
-
 
 int main(int argc, char** argv) {
 
@@ -227,55 +226,4 @@ int open_listen(int port, int* listenPort) {
     }
     
     return fd;
-}
-
-// reads from the fd until the newline character is found,
-// and then returns this string (without newline)
-char* read_from_fd(int fd, int length) {
-    
-    char* buffer = malloc(length * sizeof(char));
-    
-    char* charBuffer = malloc(sizeof(char));
-    
-    buffer[0] = '\0';
-
-    int i = 0;
-    
-    // read single char until buffer length. 
-    for (i = 0; i < length - 1; i++) {
-        
-        read(fd, charBuffer, 1);
-        
-        if (charBuffer[0] != '\n') {
-            buffer[i] = charBuffer[0];
-        } else {
-            break;
-        }
-        
-    }
-    
-    free(charBuffer);
-    
-    buffer[i] = '\0';
-
-    return buffer;
-    
-}
-
-// returns 0 if the number of digits of i is not the same as
-// the length of s
-int check_input_digits(int i, char* s) {
-    // get digits of i
-    int dupI = i;
-    if (!dupI) {
-        dupI++;
-    }
-    int length = 0;
-    while(dupI) {
-        dupI /= 10;
-        length++;
-    }
-    // compare to length of string
-    return (length == strlen(s));
-    
 }
