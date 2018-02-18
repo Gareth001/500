@@ -26,22 +26,22 @@
 
 // stores player info
 typedef struct Player {
-	
-	char* playerName;
-	
-	int fd;
+    
+    char* playerName;
+    
+    int fd;
 
 } Player;
 
 
 // stores game info
 typedef struct GameInfo {
-	
-	Player* player;
-	
-	int players;
-	
-	// permanent stats
+    
+    Player* player;
+    
+    int players;
+    
+    // permanent stats
     char* password;
     unsigned int timeout;
     int fdServer; // for passing to threads
@@ -52,25 +52,25 @@ typedef struct GameInfo {
 int check_input_digits(int i, char* s);
 int open_listen(int port, int* listenPort);
 void process_connections(int fdServer, GameInfo* games);
-char* readFromFD(int fd, int length);
+char* read_from_fd(int fd, int length);
 int send_to_all(char* message, GameInfo* gameInfo);
 
 
 int main(int argc, char** argv) {
 
-	// check arg count
-	if (argc != 3) {
+    // check arg count
+    if (argc != 3) {
         fprintf(stderr, "server.exe password port");
         return 1;
     }
 
-	char* password = argv[1]; // read password
-	
-	if (strlen(password) > MAX_PASS_LENGTH) {
-		fprintf(stderr, "password too long");
-		return 2;
-	}
-	
+    char* password = argv[1]; // read password
+    
+    if (strlen(password) > MAX_PASS_LENGTH) {
+        fprintf(stderr, "password too long");
+        return 2;
+    }
+    
     int port = atoi(argv[2]); // read port
 
     // check valid port. 
@@ -80,23 +80,23 @@ int main(int argc, char** argv) {
         return 3;
     }
 
-	// our fd server
+    // our fd server
     int fdServer;
-	int listenPort = 0;
-	
+    int listenPort = 0;
+    
     // attempt to listen (exits here if fail) and print
     fdServer = open_listen(port, &listenPort);
-	fprintf(stdout, "%d\n", listenPort);
-	
-	// create game info struct and populate
-	GameInfo gameInfo;
-	gameInfo.fdServer = fdServer;
-	gameInfo.password = password;
-	gameInfo.players = 0;
-	gameInfo.player = malloc(4 * sizeof(Player));
-	
-	// process connections
-	process_connections(fdServer, &gameInfo);
+    fprintf(stdout, "%d\n", listenPort);
+    
+    // create game info struct and populate
+    GameInfo gameInfo;
+    gameInfo.fdServer = fdServer;
+    gameInfo.password = password;
+    gameInfo.players = 0;
+    gameInfo.player = malloc(4 * sizeof(Player));
+    
+    // process connections
+    process_connections(fdServer, &gameInfo);
 
 }
 
@@ -108,71 +108,69 @@ void process_connections(int fdServer, GameInfo* gameInfo) {
 
     while(1) {
 
-	    fromAddrSize = sizeof(struct sockaddr_in);
+        fromAddrSize = sizeof(struct sockaddr_in);
         // block, waiting for a new connection (fromAddr will be populated
         // with address of the client. Accept        
-				
+                
         fd = accept(fdServer, (struct sockaddr*)&fromAddr,  &fromAddrSize);
 
-		// check password
-		char* passBuffer = readFromFD(fd, MAX_PASS_LENGTH);
-			
-		if (strcmp(passBuffer, gameInfo->password) == 0) {
-			// password was valid
-			free(passBuffer);
+        // check password
+        char* passBuffer = read_from_fd(fd, MAX_PASS_LENGTH);
+            
+        if (strcmp(passBuffer, gameInfo->password) == 0) {
+            // password was valid
+            free(passBuffer);
 
-			// send yes to client for password
+            // send yes to client for password
             write(fd, "yes\n", 4);
-			
-			// get user name from client
-			char* userBuffer = readFromFD(fd, MAX_NAME_LENGTH);
-			
-			// check username is valid, i.e. not taken before
-			/////////////////////////////////////////////////////////////////
+            
+            // get user name from client
+            char* userBuffer = read_from_fd(fd, MAX_NAME_LENGTH);
+            
+            // check username is valid, i.e. not taken before
+            /////////////////////////////////////////////////////////////////
 
-			// send yes to client for user name
+            // send yes to client for user name
             write(fd, "yes\n", 4);
 
-			// server message
-			fprintf(stdout, "Player %d connected with user name '%s'\n",
-				gameInfo->players, userBuffer);
-			
-			// add name
-			gameInfo->player[gameInfo->players].playerName = userBuffer;
-			gameInfo->player[gameInfo->players].fd = fd;
-			gameInfo->players++;
-			
-			// check if we are able to start the game
-			if (gameInfo->players == 4) {
-				// send yes to all players, game starting
-				send_to_all("yes\n", gameInfo);
+            // server message
+            fprintf(stdout, "Player %d connected with user name '%s'\n",
+                gameInfo->players, userBuffer);
+            
+            // add name
+            gameInfo->player[gameInfo->players].playerName = userBuffer;
+            gameInfo->player[gameInfo->players].fd = fd;
+            gameInfo->players++;
+            
+            // check if we are able to start the game
+            if (gameInfo->players == 4) {
+                // send yes to all players, game starting
+                send_to_all("yes\n", gameInfo);
+                
+            }
 
-				
-			}
-
-			
-		} else {
+            
+        } else {
             // otherwise we got illegal input. Send no.
             write(fd, "no\n", 3);
             close(fd);
 
         }
 
-		free(passBuffer);
-	
-	}
-	
-	
+        free(passBuffer);
+    
+    }
+    
 }
 
 // sends a message to all players
 int send_to_all(char* message, GameInfo* gameInfo) {
-	for (int i = 0; i < 4; i++) {
-		write(gameInfo->player[i].fd, message, strlen(message));
-	}
-	
-	return 0;
-	
+    for (int i = 0; i < 4; i++) {
+        write(gameInfo->player[i].fd, message, strlen(message));
+    }
+    
+    return 0;
+    
 }
 
 // opens the port for listening, exits with error if didn't work also writes
@@ -233,7 +231,7 @@ int open_listen(int port, int* listenPort) {
 
 // reads from the fd until the newline character is found,
 // and then returns this string (without newline)
-char* readFromFD(int fd, int length) {
+char* read_from_fd(int fd, int length) {
     
     char* buffer = malloc(length * sizeof(char));
     

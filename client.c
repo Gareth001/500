@@ -19,7 +19,7 @@
 int check_input_digits(int i, char* s);
 struct in_addr* name_to_IP_addr(char* hostname);
 int connect_to(struct in_addr* ipAddress, int port);
-char* readFromFD(int fd);
+char* read_from_fd(int fd);
 
 // main
 int main(int argc, char** argv) {
@@ -36,26 +36,26 @@ int main(int argc, char** argv) {
     // connect to given port
     int fd;
     struct in_addr* ipAddress;
-	
+    
     // Convert hostname to IP address
     ipAddress = name_to_IP_addr("0");
-	
+    
     // Establish a connection to given port
     fd = connect_to(ipAddress, port);
-		
-	// prepare first message
+        
+    // prepare first message
     char* message = malloc(MAX_PASS_LENGTH * sizeof(char));
         
     // send the password
     sprintf(message, "%s\n", argv[2]);
     write(fd, message, strlen(message));
     free(message);
-	
+    
         
     char* readBuffer = malloc(5 * sizeof(char));
 
     read(fd, readBuffer, 4); // we expect either yes\n or no\n, so 4 char
-	
+    
     if (strcmp(readBuffer, "yes\n") != 0) {
         // exit
         fprintf(stderr, "Auth failed\n");
@@ -68,7 +68,7 @@ int main(int argc, char** argv) {
     
     // otherwise it worked
     char* newBuffer = malloc(BUFFER_LENGTH * sizeof(char));
-	
+    
     // send player name
     sprintf(newBuffer, "%s\n", argv[3]);
     write(fd, newBuffer, strlen(newBuffer));
@@ -84,10 +84,10 @@ int main(int argc, char** argv) {
         return 3;
 
     }
-	
-	fprintf(stderr, "Connected successfully!\n");
-	
-	// wait for go ahead to start, which is another yes
+    
+    fprintf(stderr, "Connected successfully!\n");
+    
+    // wait for go ahead to start, which is another yes
     read(fd, readBuffer, 4); // confirmation
         
     if (strcmp(readBuffer, "yes\n") != 0) {
@@ -99,14 +99,14 @@ int main(int argc, char** argv) {
         return 4;
 
     }
-	
-	free(readBuffer);
-	free(newBuffer);
-	
-	// take us to the game!
-	fprintf(stderr, "game started!\n");
-	
-	
+    
+    free(readBuffer);
+    free(newBuffer);
+    
+    // take us to the game!
+    fprintf(stderr, "game started!\n");
+    
+    
     // Close socket
     close(fd);
     return 0;
@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
 
 // reads from the fd until the newline character is found,
 // and then returns this string (without newline)
-char* readFromFD(int fd) {
+char* read_from_fd(int fd) {
     
     char* buffer = malloc(BUFFER_LENGTH * sizeof(char));
     
@@ -192,10 +192,10 @@ int connect_to(struct in_addr* ipAddress, int port) {
     // the server
     socketAddr.sin_family = AF_INET;    // IPv4
     socketAddr.sin_port = htons(port);    // convert port num to network byte
-	
+    
     socketAddr.sin_addr.s_addr = inet_addr("0");//ipAddress->s_addr; // IP address - already in
                                 // network byte order
-								
+                                
     // Attempt to connect to the server
     if(connect(fd, (struct sockaddr*)&socketAddr, sizeof(socketAddr)) < 0) {
         fprintf(stderr, "Connect failed\n");
