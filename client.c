@@ -18,8 +18,10 @@
 #define MAX_PASS_LENGTH 20
 #define MAX_NAME_LENGTH 20
 
+// function declaration
 struct in_addr* name_to_IP_addr(char* hostname);
 int connect_to(struct in_addr* ipAddress, int port);
+void game_loop();
 
 //Test comment, James is in da house. Memes 2.00 This will work surely
 // main
@@ -105,12 +107,18 @@ int main(int argc, char** argv) {
     free(newBuffer);
     
     // take us to the game!
-    fprintf(stderr, "game started!\n");
-    
+    fprintf(stderr, "Game started!\n");
     
     // Close socket
     close(fd);
     return 0;
+
+}
+
+// game loop.
+void game_loop() { 
+
+
 
 }
 
@@ -143,9 +151,7 @@ int connect_to(struct in_addr* ipAddress, int port) {
     // the server
     socketAddr.sin_family = AF_INET;    // IPv4
     socketAddr.sin_port = htons(port);    // convert port num to network byte
-    
-    socketAddr.sin_addr.s_addr = inet_addr("0");//ipAddress->s_addr; // IP address - already in
-                                // network byte order
+    socketAddr.sin_addr.s_addr = inet_addr("0"); // IP address
                                 
     // Attempt to connect to the server
     if(connect(fd, (struct sockaddr*)&socketAddr, sizeof(socketAddr)) < 0) {

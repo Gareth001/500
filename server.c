@@ -102,9 +102,18 @@ int main(int argc, char** argv) {
 
 // main game loop
 void game_loop(GameInfo* gameInfo) {
-
+    fprintf(stdout, "Game starting\n");
     
+    fprintf(stdout, "Shuffling\n");
+    // add shuffling code here
+    
+    fprintf(stdout, "Dealing\n");
+    // deal to players here
 
+    fprintf(stdout, "Betting round starting\n");
+    // begin betting round here
+    
+    
     // game is over. exit
     exit(0);
 }
@@ -225,10 +234,6 @@ int open_listen(int port, int* listenPort) {
     // Populate server address structure to indicate the local address(es)
     serverAddr.sin_family = AF_INET; // IPv4
     
-    if (port == '-') {
-        port = 0;
-    }
-        
     serverAddr.sin_port = htons(port); // port number - in network byte order
     serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
     // any IP address of this host
