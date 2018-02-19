@@ -21,7 +21,7 @@
 struct in_addr* name_to_IP_addr(char* hostname);
 int connect_to(struct in_addr* ipAddress, int port);
 
-//Test comment, James is in da house. Memes 2.0
+//Test comment, James is in da house. Memes 2.00
 // main
 int main(int argc, char** argv) {
 
