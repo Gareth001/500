@@ -1,12 +1,13 @@
 CFLAGS = -Wall -pedantic -std=gnu99 -pthread
+DEPS = shared.o shared.h cards.o cards.h
 
 all: server client
 
-server: server.c shared.o shared.h
-	gcc $(CFLAGS) -o server shared.o server.c
+server: server.c $(DEPS)
+	gcc $(CFLAGS) -o server $(DEPS) server.c
     
-client: client.c shared.o shared.h
-	gcc $(CFLAGS) -o client shared.o client.c
+client: client.c $(DEPS)
+	gcc $(CFLAGS) -o client $(DEPS) client.c
 
 clean: 
 	rm server.o client.o

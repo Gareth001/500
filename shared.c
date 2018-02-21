@@ -17,12 +17,10 @@
 char* read_from_fd(int fd, int length) {
     
     char* buffer = malloc(length * sizeof(char));
-    
     char* charBuffer = malloc(sizeof(char));
     
     buffer[0] = '\0';
-
-    int i = 0;
+    int i;
     
     for (i = 0; i < length - 1; i++) {
         
@@ -30,16 +28,16 @@ char* read_from_fd(int fd, int length) {
         
         if (charBuffer[0] != '\n') {
             buffer[i] = charBuffer[0];
+            
         } else {
             break;
+            
         }
         
     }
     
     free(charBuffer);
-    
     buffer[i] = '\0';
-
     return buffer;
     
 }

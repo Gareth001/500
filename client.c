@@ -13,6 +13,7 @@
 #include <arpa/inet.h>
 
 #include "shared.h"
+#include "cards.h"
 
 #define BUFFER_LENGTH 100
 #define MAX_PASS_LENGTH 20
@@ -21,7 +22,7 @@
 // function declaration
 struct in_addr* name_to_IP_addr(char* hostname);
 int connect_to(struct in_addr* ipAddress, int port);
-void game_loop();
+void game_loop(int fd);
 
 //Test comment, James is in da house. Memes 2.00 This will work surely
 // main
@@ -90,10 +91,10 @@ int main(int argc, char** argv) {
     
     fprintf(stderr, "Connected successfully!\n");
     
-    // wait for go ahead to start, which is another yes
-    read(fd, readBuffer, 4); // confirmation
+    // wait for go ahead to start, which is start
+    read(fd, readBuffer, 6); // confirmation
         
-    if (strcmp(readBuffer, "yes\n") != 0) {
+    if (strcmp(readBuffer, "start\n") != 0) {
         // exit
         fprintf(stderr, "Unexpected exit\n");
         
@@ -108,17 +109,43 @@ int main(int argc, char** argv) {
     
     // take us to the game!
     fprintf(stderr, "Game started!\n");
-    
-    // Close socket
-    close(fd);
-    return 0;
+    game_loop(fd);
 
 }
 
 // game loop.
-void game_loop() { 
+void game_loop(int fd) { 
 
+    // here we first receive all the players names in the game, in order of
+    // player number.
+    fprintf(stdout, "Players Connected:\n");
+    for (int i = 0; i < 4; i++) {
+        char* readBuffer = read_from_fd(fd, MAX_NAME_LENGTH);
+        fprintf(stdout, "Player %d: %s\n", i, readBuffer);
+        
+        write(fd, "yes\n", 4);
+        
+    }
+    
+    // now prepare to receive the player's deck of cards.
+    fprintf(stdout, "Your hand:");
+    
+    // print out all the cards
+    for (int i = 0; i < 10; i++) {
+        fprintf(stdout,"%d:%s ", i, read_from_fd(fd, 3));
+        read_from_fd(fd, 3); // spooky magic line of code
+        
+        // send yes to show we got the card
+        write(fd, "yes\n", 4);
+        
+    }
+    
+    fprintf(stdout, "\n");
 
+    
+    // Close socket
+    close(fd);
+    exit(0);
 
 }
 

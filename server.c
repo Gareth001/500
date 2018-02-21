@@ -14,8 +14,10 @@
 #include <ctype.h>
 #include <pthread.h>
 #include <stdbool.h>
+#include <time.h>
 
 #include "shared.h"
+#include "cards.h"
 
 #define BUFFER_LENGTH 100
 #define MAX_PASS_LENGTH 20
@@ -29,7 +31,7 @@
 // stores player info
 typedef struct Player {
     
-    char* playerName;
+    char* name;
     
     int fd;
 
@@ -55,6 +57,8 @@ int open_listen(int port, int* listenPort);
 void process_connections(int fdServer, GameInfo* games);
 int send_to_all(char* message, GameInfo* gameInfo);
 int check_valid_username(char* user, GameInfo* gameInfo);
+int read_from_all(char* message, GameInfo* gameInfo);
+
 
 int main(int argc, char** argv) {
 
@@ -104,11 +108,80 @@ int main(int argc, char** argv) {
 void game_loop(GameInfo* gameInfo) {
     fprintf(stdout, "Game starting\n");
     
-    fprintf(stdout, "Shuffling\n");
-    // add shuffling code here
+    // send all players the player details.
+    char* message = malloc(MAX_NAME_LENGTH * sizeof(char));
+    for (int i = 0; i < 4; i++) {
+        sprintf(message, "%s\n", gameInfo->player[i].name);
+        send_to_all(message, gameInfo);
+        
+        // now read from all to ensure correct order is read by client
+        read_from_all("yes\n", gameInfo); // do something with the return?
+
+    }
     
+    fprintf(stdout, "Shuffling\n");
+    srand(time(NULL)); // random seed
+    Card* deck = create_deck();
+    Card* kitty = malloc(3 * sizeof(Card));
+    
+    
+    fprintf(stdout, "Deck: ");
+    for (int i = 0; i < 43; i++) {
+        fprintf(stdout, "%s ", return_card(&deck[i]));
+    }
+    fprintf(stdout, "\n");
+
     fprintf(stdout, "Dealing\n");
-    // deal to players here
+    
+    int j = 0; // kitty counter
+        
+    // send cards to users
+    for(int i = 0; i < 43; i++) {
+        // give to kitty
+        if (i == 12 || i == 28 || i == 42) {
+            kitty[j++] = deck[i];
+            continue;
+        }
+        
+        // record which player we send to
+        int k;
+        
+        // send card value with newline 
+        char* c = malloc(3 * sizeof(char));
+        sprintf(c, "%s\n", return_card(&deck[i]));
+        
+        if (i < 12) {
+            // send ith card to Player i%4
+            write(gameInfo->player[k = (i % 4)].fd, c, 3);
+            
+        } else if (i < 28) {
+            // send ith card to Player (i-1)%4
+            write(gameInfo->player[k = ((i - 1) % 4)].fd, c, 3);
+            
+        } else {
+            // send ith card to Player (i-2)%4
+            write(gameInfo->player[k = ((i - 2) % 4)].fd, c, 3);
+            
+        }
+                
+        // wait for yes from player k
+        char* buffer = malloc(4 * sizeof(char));
+        read(gameInfo->player[k].fd, buffer, 4);
+        if (strcmp(buffer, "yes\n") != 0) {
+            exit(1);
+            
+        }
+        
+    }
+    
+    // print kitty for testing
+    fprintf(stdout, "kitty: ");
+    for (int i = 0; i < 3; i++) {
+        fprintf(stdout, "%s ", return_card(&kitty[i]));
+        
+    }
+    
+    fprintf(stdout, "\n");
 
     fprintf(stdout, "Betting round starting\n");
     // begin betting round here
@@ -160,14 +233,14 @@ void process_connections(int fdServer, GameInfo* gameInfo) {
                 gameInfo->players, userBuffer);
             
             // add name
-            gameInfo->player[gameInfo->players].playerName = strdup(userBuffer);
+            gameInfo->player[gameInfo->players].name = strdup(userBuffer);
             gameInfo->player[gameInfo->players].fd = fd;
             gameInfo->players++;
             
             // check if we are able to start the game, or have 4 players
             if (gameInfo->players == 4) {
                 // send yes to all players
-                send_to_all("yes\n", gameInfo);
+                send_to_all("start\n", gameInfo);
                                 
                 // game starting
                 game_loop(gameInfo);
@@ -190,7 +263,7 @@ void process_connections(int fdServer, GameInfo* gameInfo) {
 // returns 0 if the username has not been taken before, 1 otherwise
 int check_valid_username(char* user, GameInfo* gameInfo) {
     for (int i = 0; i < gameInfo->players; i++) {        
-        if (strcmp(user, gameInfo->player[i].playerName) == 0) {
+        if (strcmp(user, gameInfo->player[i].name) == 0) {
             return 1;
             
         }
@@ -205,6 +278,22 @@ int check_valid_username(char* user, GameInfo* gameInfo) {
 int send_to_all(char* message, GameInfo* gameInfo) {
     for (int i = 0; i < 4; i++) {
         write(gameInfo->player[i].fd, message, strlen(message));
+    }
+    
+    return 0;
+    
+}
+
+// reads a message from all players, returns 0 if successful, 1 otherwise
+int read_from_all(char* message, GameInfo* gameInfo) {
+    char* msg = malloc(strlen(message) * sizeof(char));
+    for (int i = 0; i < strlen(message); i++) {
+        read(gameInfo->player[i].fd, msg, strlen(message));
+        
+        if (strcmp(msg, message) != 0) {
+            return 1;
+        }
+        
     }
     
     return 0;
