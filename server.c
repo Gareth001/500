@@ -31,8 +31,8 @@
 // stores player info
 typedef struct Player {
     
+    Card* deck;
     char* name;
-    
     int fd;
 
 } Player;
@@ -124,7 +124,7 @@ void game_loop(GameInfo* gameInfo) {
     Card* deck = create_deck();
     Card* kitty = malloc(3 * sizeof(Card));
     
-    
+    // debugging, print deck
     fprintf(stdout, "Deck: ");
     for (int i = 0; i < 43; i++) {
         fprintf(stdout, "%s ", return_card(&deck[i]));
@@ -132,6 +132,12 @@ void game_loop(GameInfo* gameInfo) {
     fprintf(stdout, "\n");
 
     fprintf(stdout, "Dealing\n");
+    
+    // malloc all players decks
+    for (int i = 0; i < 4; i++) {
+        gameInfo->player[i].deck = malloc(10 * sizeof(Card));
+        
+    }
     
     int j = 0; // kitty counter
         
@@ -151,16 +157,26 @@ void game_loop(GameInfo* gameInfo) {
         sprintf(c, "%s\n", return_card(&deck[i]));
         
         if (i < 12) {
-            // send ith card to Player i%4
-            write(gameInfo->player[k = (i % 4)].fd, c, 3);
+            // record the card in the players deck
+            gameInfo->player[k = (i % 4)].deck[i / 4] = deck[i];
+
+            // send ith card to Player k
+            write(gameInfo->player[k].fd, c, 3);
+            
             
         } else if (i < 28) {
-            // send ith card to Player (i-1)%4
-            write(gameInfo->player[k = ((i - 1) % 4)].fd, c, 3);
+            // record the card in the players deck
+            gameInfo->player[k = ((i - 1) % 4)].deck[(i - 1) / 4] = deck[i];
+
+            // send ith card to Player k
+            write(gameInfo->player[k].fd, c, 3);
             
         } else {
-            // send ith card to Player (i-2)%4
-            write(gameInfo->player[k = ((i - 2) % 4)].fd, c, 3);
+            // record the card in the players deck
+            gameInfo->player[k = ((i - 2) % 4)].deck[(i - 2) / 4] = deck[i];
+
+            // send ith card to Player k
+            write(gameInfo->player[k].fd, c, 3);
             
         }
                 
@@ -171,6 +187,18 @@ void game_loop(GameInfo* gameInfo) {
             exit(1);
             
         }
+        
+    }
+    
+    // print each players deck
+    for (int i = 0; i < 4; i++) {
+        fprintf(stdout, "Player %d: ", i);
+        
+        for (int j = 0; j < 10; j++) {
+            fprintf(stdout, "%s ", return_card(&gameInfo->player[i].deck[j]));
+            
+        }
+        fprintf(stdout, "\n");
         
     }
     
