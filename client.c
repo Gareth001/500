@@ -127,20 +127,12 @@ void game_loop(int fd) {
         write(fd, "yes\n", 4);
         
     }
-    
-    // now prepare to receive the player's deck of cards.
-    fprintf(stdout, "Your hand:");
-    
-    // print out all the cards TEMPORARY
-    for (int i = 0; i < 10; i++) {
-        fprintf(stdout,"%d:%s ", i, read_from_fd(fd, 3));
-        read_from_fd(fd, 3); // spooky magic line of code
         
-        // send yes to show we got the card
-        write(fd, "yes\n", 4);
-        
-    }
-    fprintf(stdout, "\n");
+    // print out all the cards from the server
+    char* message = malloc(BUFFER_LENGTH * sizeof(char));
+    read(fd, message, BUFFER_LENGTH);
+    fprintf(stdout, "Your hand: %s\n", message);
+    
 
     fprintf(stdout, "Betting round starting\n");
 

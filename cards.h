@@ -35,6 +35,10 @@ char return_trump_char(Trump trump);
 // returns a number representing the trump's character.
 Trump return_trump(char trump);
 
+// returns a string representation of a users hand, each card seperated
+// by a single space
+char* return_hand(Card* cards);
+
 // Compares 2 given cards with the current trump.
 // return -1 if card a < card b 
 // return 1 if card a > card b

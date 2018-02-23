@@ -163,45 +163,31 @@ void game_loop(GameInfo* gameInfo) {
             kitty[j++] = deck[i];
             continue;
         }
-        
-        // record which player we send to
-        int k;
-        
-        // send card value with newline 
-        char* c = malloc(3 * sizeof(char));
-        sprintf(c, "%s\n", return_card(&deck[i]));
-        
+
+        // give the card to the players deck
         if (i < 12) {
             // record the card in the players deck
-            gameInfo->player[k = (i % 4)].deck[i / 4] = deck[i];
-
-            // send ith card to Player k
-            write(gameInfo->player[k].fd, c, 3);
-            
+            gameInfo->player[i % 4].deck[i / 4] = deck[i];            
             
         } else if (i < 28) {
             // record the card in the players deck
-            gameInfo->player[k = ((i - 1) % 4)].deck[(i - 1) / 4] = deck[i];
-
-            // send ith card to Player k
-            write(gameInfo->player[k].fd, c, 3);
+            gameInfo->player[(i - 1) % 4].deck[(i - 1) / 4] = deck[i];
             
         } else {
             // record the card in the players deck
-            gameInfo->player[k = ((i - 2) % 4)].deck[(i - 2) / 4] = deck[i];
-
-            // send ith card to Player k
-            write(gameInfo->player[k].fd, c, 3);
+            gameInfo->player[(i - 2) % 4].deck[(i - 2) / 4] = deck[i];
             
-        }
-                
-        // wait for yes from player k
-        char* buffer = malloc(4 * sizeof(char));
-        read(gameInfo->player[k].fd, buffer, 4);
-        if (strcmp(buffer, "yes\n") != 0) {
-            exit(1);
-            
-        }
+        }    
+    
+    }
+    
+    // sort each deck by suite here!
+    
+    // send each player their deck
+    for (int i = 0; i < 4; i++) {
+        char* message = malloc(100 * sizeof(char));
+        sprintf(message, "%s\n", return_hand(gameInfo->player[i].deck));
+        write(gameInfo->player[i].fd, message, strlen(message));
         
     }
     

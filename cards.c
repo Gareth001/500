@@ -80,6 +80,22 @@ char* return_card(Card* card) {
     
 }
 
+// returns a string representation of a users hand, each card seperated
+// by a single space
+char* return_hand(Card* cards) {
+    // VERY temporary
+    char* message = malloc(20 * sizeof(char));
+        
+    sprintf(message, "%s %s %s %s %s %s %s %s %s %s", return_card(&cards[0]),
+            return_card(&cards[1]), return_card(&cards[2]), return_card(&cards[3]),
+            return_card(&cards[4]), return_card(&cards[5]), return_card(&cards[6]),
+            return_card(&cards[7]), return_card(&cards[8]), return_card(&cards[9])
+            );
+            
+    return message;
+    
+}
+
 // returns a character representing the trump.
 char return_trump_char(Trump trump) {
     switch (trump) {
