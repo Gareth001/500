@@ -116,13 +116,14 @@ int main(int argc, char** argv) {
 // game loop.
 void game_loop(int fd) { 
 
-    // here we first receive all the players names in the game, in order of
-    // player number. ALSO TEMPORARY
+    // here we first receive all the players names in the game from the server.
     fprintf(stdout, "Players Connected:\n");
+
     for (int i = 0; i < 4; i++) {
-        char* readBuffer = read_from_fd(fd, MAX_NAME_LENGTH);
-        fprintf(stdout, "Player %d: %s\n", i, readBuffer);
+        char* readBuffer = read_from_fd(fd, BUFFER_LENGTH);
+        fprintf(stdout, "%s\n", readBuffer);
         
+        // send yes to server, to tell them we got it
         write(fd, "yes\n", 4);
         
     }

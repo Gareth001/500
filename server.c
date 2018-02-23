@@ -110,17 +110,35 @@ void game_loop(GameInfo* gameInfo) {
     fprintf(stdout, "Game starting\n");
     
     // send all players the player details.
-    char* message = malloc(MAX_NAME_LENGTH * sizeof(char));
     for (int i = 0; i < 4; i++) {
-        sprintf(message, "%s\n", gameInfo->player[i].name);
-        send_to_all(message, gameInfo);
-        
-        // now read from all to ensure correct order is read by client
-        read_from_all("yes\n", gameInfo); // do something with the return?
+        for (int j = 0; j < 4; j++) {
+            char* message = malloc(BUFFER_LENGTH * sizeof(char));
 
+            // string that tells the user if the player is them or a teammate
+            char* str;
+            if (i == j) {
+                str = " (You)";
+                
+            } else if ((i + 2) % 4 == j) {
+                str = " (Teammate)";
+                
+            } else {
+                str = "";
+                
+            }
+                   
+            // send this users info to the player
+            sprintf(message, "Player %d, '%s'%s\n", j,
+                    gameInfo->player[j].name, str);
+            write(gameInfo->player[i].fd, message, strlen(message));
+            
+            // await yes from user (maybe check?)
+            char* buffer = malloc(4 * sizeof(char));
+            read(gameInfo->player[i].fd, buffer, 4);
+            
+        }
+        
     }
-    
-    free(message);
     
     fprintf(stdout, "Shuffling\n");
     srand(time(NULL)); // random seed
@@ -398,22 +416,6 @@ int check_valid_username(char* user, GameInfo* gameInfo) {
 int send_to_all(char* message, GameInfo* gameInfo) {
     for (int i = 0; i < 4; i++) {
         write(gameInfo->player[i].fd, message, strlen(message));
-    }
-    
-    return 0;
-    
-}
-
-// reads a message from all players, returns 0 if successful, 1 otherwise
-int read_from_all(char* message, GameInfo* gameInfo) {
-    char* msg = malloc(strlen(message) * sizeof(char));
-    for (int i = 0; i < strlen(message); i++) {
-        read(gameInfo->player[i].fd, msg, strlen(message));
-        
-        if (strcmp(msg, message) != 0) {
-            return 1;
-        }
-        
     }
     
     return 0;
