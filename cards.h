@@ -30,7 +30,10 @@ typedef int Trump;
 char* return_card(Card* card);
 
 // returns a character representing the trump.
-char return_trump(Trump trump);
+char return_trump_char(Trump trump);
+
+// returns a number representing the trump's character.
+Trump return_trump(char trump);
 
 // Compares 2 given cards with the current trump.
 // return -1 if card a < card b 

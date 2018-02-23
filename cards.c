@@ -75,13 +75,13 @@ char* return_card(Card* card) {
     }
 
     // get card suite and return our result
-    ret[1] = return_trump(card->suite);
+    ret[1] = return_trump_char(card->suite);
     return ret;
     
 }
 
 // returns a character representing the trump.
-char return_trump(Trump trump) {
+char return_trump_char(Trump trump) {
     switch (trump) {
         case 0: // Spades
             return 'S'; 
@@ -93,6 +93,26 @@ char return_trump(Trump trump) {
             return 'H';
         default: // No trumps
             return 'N';
+
+    }
+    
+}
+
+// returns a number representing the trump's character.
+Trump return_trump(char trump) {
+    switch (trump) {
+        case 'S': // Spades
+            return 0; 
+        case 'C': // Clubs
+            return 1;
+        case 'D': // Diamonds
+            return 2;
+        case 'H': // Hearts
+            return 3;
+        case 'N': // No trumps
+            return 4;
+        default: // Bad input
+            return -1;
 
     }
     

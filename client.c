@@ -117,7 +117,7 @@ int main(int argc, char** argv) {
 void game_loop(int fd) { 
 
     // here we first receive all the players names in the game, in order of
-    // player number.
+    // player number. ALSO TEMPORARY
     fprintf(stdout, "Players Connected:\n");
     for (int i = 0; i < 4; i++) {
         char* readBuffer = read_from_fd(fd, MAX_NAME_LENGTH);
@@ -130,7 +130,7 @@ void game_loop(int fd) {
     // now prepare to receive the player's deck of cards.
     fprintf(stdout, "Your hand:");
     
-    // print out all the cards
+    // print out all the cards TEMPORARY
     for (int i = 0; i < 10; i++) {
         fprintf(stdout,"%d:%s ", i, read_from_fd(fd, 3));
         read_from_fd(fd, 3); // spooky magic line of code
@@ -139,9 +139,40 @@ void game_loop(int fd) {
         write(fd, "yes\n", 4);
         
     }
-    
     fprintf(stdout, "\n");
 
+    fprintf(stdout, "Betting round starting\n");
+
+    // betting round
+    while (1) {
+        // server will either send bet or info they will print out or betover
+        char* result = read_from_fd(fd, BUFFER_LENGTH);
+
+        if (strcmp(result, "bet") == 0) {
+            fprintf(stdout, "Your bet!\n");
+            
+            // send a bet from the player input
+            char* buff = malloc(4 * sizeof(char));
+            fgets(buff, 4, stdin);
+            write(fd, buff, 3);
+            
+        } else if (strcmp(result, "betover") == 0) {
+            // betting round over
+            break;
+            
+        } else {
+            // server sent info on betting, print.
+            fprintf(stdout, "%s\n", result);
+            
+        }
+        
+        
+    }
+    
+    // result from betting round here
+    char* result = read_from_fd(fd, BUFFER_LENGTH);
+    fprintf(stdout, "%s\n", result);
+    
     
     // Close socket
     close(fd);

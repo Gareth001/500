@@ -34,7 +34,8 @@ typedef struct Player {
     Card* deck;
     char* name;
     int fd;
-
+    bool hasPassed;
+    
 } Player;
 
 
@@ -119,23 +120,19 @@ void game_loop(GameInfo* gameInfo) {
 
     }
     
+    free(message);
+    
     fprintf(stdout, "Shuffling\n");
     srand(time(NULL)); // random seed
     Card* deck = create_deck();
     Card* kitty = malloc(3 * sizeof(Card));
     
-    // debugging, print deck
-    fprintf(stdout, "Deck: ");
-    for (int i = 0; i < 43; i++) {
-        fprintf(stdout, "%s ", return_card(&deck[i]));
-    }
-    fprintf(stdout, "\n");
-
     fprintf(stdout, "Dealing\n");
     
     // malloc all players decks
     for (int i = 0; i < 4; i++) {
         gameInfo->player[i].deck = malloc(10 * sizeof(Card));
+        gameInfo->player[i].hasPassed = false; // set this property too
         
     }
     
@@ -190,6 +187,13 @@ void game_loop(GameInfo* gameInfo) {
         
     }
     
+    // debugging, print deck
+    fprintf(stdout, "Deck: ");
+    for (int i = 0; i < 43; i++) {
+        fprintf(stdout, "%s ", return_card(&deck[i]));
+    }
+    fprintf(stdout, "\n");
+
     // print each players deck
     for (int i = 0; i < 4; i++) {
         fprintf(stdout, "Player %d: ", i);
@@ -208,12 +212,100 @@ void game_loop(GameInfo* gameInfo) {
         fprintf(stdout, "%s ", return_card(&kitty[i]));
         
     }
-    
     fprintf(stdout, "\n");
 
     fprintf(stdout, "Betting round starting\n");
-    // begin betting round here
+
+    // ignore misere case for now
+    int highestBet = 0;
+    Trump suite = 0;
     
+    int p = 0; // player counter
+    int pPassed = 0; // players passed counter
+    
+    // loop until winner
+    while (pPassed != 4) {
+            
+        while (gameInfo->player[p].hasPassed == false) {
+            
+            // begin with player 0
+            write(gameInfo->player[p].fd, "bet\n", 4);
+            
+            // get bet from player 0
+            char* msg = malloc(3 * sizeof(char));
+            read(gameInfo->player[p].fd, msg, 3);
+            
+            char* send = malloc(BUFFER_LENGTH * sizeof(char));
+
+            // check if it's a pass
+            if (strcmp(msg, "PA\n") == 0) {
+                // set passed to true, change send msg
+                gameInfo->player[p].hasPassed = true;
+                sprintf(send, "Player %d passed\n", p);
+                pPassed++;
+                
+            } else {
+                // ensure length of message is correct
+                if (strlen(msg) != 3) {
+                    continue;
+                }
+                
+                int newBet = 0;
+                Trump newSuite = 0;
+                
+                // read value, with special case '0' = 10
+                newBet = (msg[0] == '0') ? 10 : msg[0] - 48;
+                                    
+                // make sure value is valid
+                if (newBet < 6 || newBet > 10) {
+                    continue;
+                }
+                
+                newSuite = return_trump(msg[1]);
+                
+                // check for default case
+                if (newSuite == -1) {
+                    continue;
+                }
+
+                // so the input is valid, now check if the bet is higher than the last one.
+                // TBA
+                
+                highestBet = newBet;
+                suite = newSuite;
+                
+                // string to send to all players
+                sprintf(send, "Player %d bet %d%c\n", p, highestBet,
+                        return_trump_char(suite)); 
+                
+            }
+            
+            fprintf(stdout, "%s", send);
+            send_to_all(send, gameInfo);
+            break;
+            
+        }
+        
+        
+        p++;
+        p %= 4;
+        
+    }
+
+    // send bet over to all players. Betting round finished
+    send_to_all("betover\n", gameInfo);
+
+    // get actual winning player
+    p += 3;
+    p %= 4;
+    
+    // send winning bet to all players
+    char* msg = malloc(BUFFER_LENGTH * sizeof(char));
+    sprintf(msg, "Player %d won the bet with %d%c!\n", p, highestBet, 
+            return_trump_char(suite));
+    fprintf(stdout, "%s", msg);
+    send_to_all(msg, gameInfo);
+
     
     // game is over. exit
     exit(0);
