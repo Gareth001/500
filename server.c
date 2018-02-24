@@ -183,40 +183,29 @@ void game_loop(GameInfo* gameInfo) {
     
     // sort each deck by suite here!
     
+    
     // send each player their deck
     for (int i = 0; i < 4; i++) {
         char* message = malloc(100 * sizeof(char));
-        sprintf(message, "%s\n", return_hand(gameInfo->player[i].deck));
+        sprintf(message, "%s\n", return_hand(gameInfo->player[i].deck, 10));
         write(gameInfo->player[i].fd, message, strlen(message));
         
     }
     
     // debugging, print deck
-    fprintf(stdout, "Deck: ");
-    for (int i = 0; i < 43; i++) {
-        fprintf(stdout, "%s ", return_card(&deck[i]));
-    }
-    fprintf(stdout, "\n");
-
-    // print each players deck
+    fprintf(stdout, "Deck: %s\n", return_hand(deck, 43));
+    
+    // print each players hand
     for (int i = 0; i < 4; i++) {
-        fprintf(stdout, "Player %d: ", i);
+        fprintf(stdout, "Player %d: %s\n", i,
+                return_hand(gameInfo->player[i].deck, 10));
         
-        for (int j = 0; j < 10; j++) {
-            fprintf(stdout, "%s ", return_card(&gameInfo->player[i].deck[j]));
-            
-        }
-        fprintf(stdout, "\n");
         
     }
     
-    // print kitty for testing
-    fprintf(stdout, "kitty: ");
-    for (int i = 0; i < 3; i++) {
-        fprintf(stdout, "%s ", return_card(&kitty[i]));
-        
-    }
-    fprintf(stdout, "\n");
+    // print kitty 
+    fprintf(stdout, "kitty: %s\n", return_hand(kitty, 3));
+    
 
     fprintf(stdout, "Betting round starting\n");
 
@@ -272,12 +261,20 @@ void game_loop(GameInfo* gameInfo) {
                     continue;
                 }
 
-                // so the input is valid, now check if the bet is higher than the last one.
-                // TBA
+                // so the input is valid, now check if the bet is higher 
+                // than the last one.
+                // if the number is higher, that guarantees a higher bet.
+                if (newBet > highestBet || (newBet == highestBet &&
+                        newSuite > suite)) {
                 
-                highestBet = newBet;
-                suite = newSuite;
-                
+                    highestBet = newBet;
+                    suite = newSuite;
+                            
+                } else {
+                    continue;
+                    
+                }
+                    
                 // string to send to all players
                 sprintf(send, "Player %d bet %d%c\n", p, highestBet,
                         return_trump_char(suite)); 
@@ -289,7 +286,6 @@ void game_loop(GameInfo* gameInfo) {
             break;
             
         }
-        
         
         p++;
         p %= 4;
@@ -303,6 +299,12 @@ void game_loop(GameInfo* gameInfo) {
     p += 3;
     p %= 4;
     
+    if (highestBet == 0) {
+        // case where everyone passed, we want to redeal 
+        // TBA
+        
+    }
+    
     // send winning bet to all players
     char* msg = malloc(BUFFER_LENGTH * sizeof(char));
     sprintf(msg, "Player %d won the bet with %d%c!\n", p, highestBet, 
@@ -310,6 +312,38 @@ void game_loop(GameInfo* gameInfo) {
     fprintf(stdout, "%s", msg);
     send_to_all(msg, gameInfo);
 
+    fprintf(stdout, "Dealing kitty\n");
+    
+    // send the winner of the betting round the 13 cards they have to
+    // choose from, the player will send the three they don't want
+    // and the server will handle it
+    
+    // send message to winner that they are to receive kitty data
+    write(gameInfo->player[p].fd, "kittywin\n", 9);
+    
+    // make sure player is ready for input
+    //char* msg3 = malloc(4 * sizeof(char));
+    //read(gameInfo->player[p].fd, msg3, 4);
+    read_from_fd(gameInfo->player[p].fd, 4);
+  
+    // prepare string to send to the winner
+    char* msg2 = malloc(BUFFER_LENGTH * sizeof(char));
+    sprintf(msg2, "You won! Pick 3 cards to discard: %s %s\n",
+            return_hand(gameInfo->player[p].deck, 10), return_hand(kitty, 3));
+    write(gameInfo->player[p].fd, msg2, strlen(msg2));
+    
+    // recieve 3 cards the user wants to discard
+    
+    
+    
+    // send kitty done to all
+    send_to_all("kittyend\n", gameInfo);
+    
+    // kitty is over now
+    fprintf(stdout, "Kitty finished\nGame Begins\n");
+    
+    
+    
     
     // game is over. exit
     exit(0);

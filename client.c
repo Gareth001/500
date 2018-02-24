@@ -164,9 +164,33 @@ void game_loop(int fd) {
     
     // result from betting round here
     char* result = read_from_fd(fd, BUFFER_LENGTH);
-    fprintf(stdout, "%s\n", result);
+    fprintf(stdout, "%s\nWaiting for Kitty\n", result);
     
+    // find if we won or didn't 
+    char* newResult = read_from_fd(fd, 10);
+        
+    if (strcmp(newResult, "kittywin") == 0) {
+        // this player won the kitty bet.
+        
+        // send that we are ready for more
+        write(fd, "yes\n", 4);
+        
+        // read our current deck from the server 
+        char* newerResult = malloc(BUFFER_LENGTH * sizeof(char));
+        read(fd, newerResult, BUFFER_LENGTH);
+        fprintf(stdout, "%s", newerResult);
+        
+        // choose which cards to discard
+        
+        // server will finally tell us that we are done
+        result = read_from_fd(fd, 9);
+        
+    } 
     
+    // kitty is over now
+    fprintf(stdout, "Kitty finished\nGame Begins\n");
+
+
     // Close socket
     close(fd);
     exit(0);

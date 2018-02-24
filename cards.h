@@ -37,7 +37,7 @@ Trump return_trump(char trump);
 
 // returns a string representation of a users hand, each card seperated
 // by a single space
-char* return_hand(Card* cards);
+char* return_hand(Card* cards, int num);
 
 // Compares 2 given cards with the current trump.
 // return -1 if card a < card b 

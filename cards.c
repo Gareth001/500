@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "cards.h"
 
@@ -82,16 +83,19 @@ char* return_card(Card* card) {
 
 // returns a string representation of a users hand, each card seperated
 // by a single space
-char* return_hand(Card* cards) {
-    // VERY temporary
-    char* message = malloc(20 * sizeof(char));
-        
-    sprintf(message, "%s %s %s %s %s %s %s %s %s %s", return_card(&cards[0]),
-            return_card(&cards[1]), return_card(&cards[2]), return_card(&cards[3]),
-            return_card(&cards[4]), return_card(&cards[5]), return_card(&cards[6]),
-            return_card(&cards[7]), return_card(&cards[8]), return_card(&cards[9])
-            );
+char* return_hand(Card* cards, int num) {
+    
+    char* message = malloc(num * 3 * sizeof(char));
+    
+    for (int i = 0; i < num; i++) {
+        strcat(message, return_card(&cards[i]));
+        if (i < num - 1) {
+            strcat(message, " ");
             
+        }
+        
+    }
+        
     return message;
     
 }
