@@ -19,14 +19,11 @@
 #include "shared.h"
 #include "cards.h"
 
-#define BUFFER_LENGTH 100
-#define MAX_PASS_LENGTH 20
-#define MAX_NAME_LENGTH 20
-
-// ERRORS
+// Exit Statuses
 // 1: Wrong arguments
 // 2: Password too long
 // 3: Invalid port
+// 4: client unexpected exit
 
 // stores player info
 typedef struct Player {
@@ -37,7 +34,6 @@ typedef struct Player {
     bool hasPassed;
     
 } Player;
-
 
 // stores game info
 typedef struct GameInfo {
@@ -332,7 +328,7 @@ void game_loop(GameInfo* gameInfo) {
             return_hand(gameInfo->player[p].deck, 10), return_hand(kitty, 3));
     write(gameInfo->player[p].fd, msg2, strlen(msg2));
     
-    // recieve 3 cards the user wants to discard
+    // receive 3 cards the user wants to discard
     
     
     
@@ -397,9 +393,28 @@ void process_connections(int fdServer, GameInfo* gameInfo) {
             
             // check if we are able to start the game, or have 4 players
             if (gameInfo->players == 4) {
-                // send yes to all players
+                // send start to all players
                 send_to_all("start\n", gameInfo);
-                                
+                
+                // we want a yes from all players
+                for (int i = 0; i < 4; i++) {
+                    
+                    char* buf = malloc(4 * sizeof(char));
+                    if (read(gameInfo->player[i].fd, buf, 4) == -1) {
+                        
+                        // if we don't get a yes, then send a message that game 
+                        // is not starting and we exit.
+                        fprintf(stderr, "Client disconnected early");
+                        send_to_all("nostr\n", gameInfo);
+                        exit(4);
+                        
+                    }
+                    
+                }
+
+                // all players are here, start the game
+                send_to_all("start\n", gameInfo);
+
                 // game starting
                 game_loop(gameInfo);
                 

@@ -15,9 +15,11 @@
 #include "shared.h"
 #include "cards.h"
 
-#define BUFFER_LENGTH 100
-#define MAX_PASS_LENGTH 20
-#define MAX_NAME_LENGTH 20
+// Exit Statuses
+// 1: Wrong arguments
+// 2: Wrong password
+// 3: Invalid username
+// 4: Unexpected exit
 
 // function declaration
 struct in_addr* name_to_IP_addr(char* hostname);
@@ -91,10 +93,18 @@ int main(int argc, char** argv) {
     
     fprintf(stderr, "Connected successfully!\n");
     
-    // wait for go ahead to start, which is start
-    read(fd, readBuffer, 6); // confirmation
+    // recieve start from server
+    read(fd, readBuffer, 6);
         
-    if (strcmp(readBuffer, "start\n") != 0) {
+    // tell them yes, we are still here
+    write(fd, "yes\n", 4);
+    
+    char* readBuffer2 = malloc(6 * sizeof(char));
+    
+    // recieve start from server which lets us know everyone is here
+    read(fd, readBuffer2, 6); // confirmation
+        
+    if (strcmp(readBuffer2, "start\n") != 0) {
         // exit
         fprintf(stderr, "Unexpected exit\n");
         
@@ -105,6 +115,7 @@ int main(int argc, char** argv) {
     }
     
     free(readBuffer);
+    free(readBuffer2);
     free(newBuffer);
     
     // take us to the game!
@@ -131,9 +142,8 @@ void game_loop(int fd) {
     // print out all the cards from the server
     char* message = malloc(BUFFER_LENGTH * sizeof(char));
     read(fd, message, BUFFER_LENGTH);
-    fprintf(stdout, "Your hand: %s\n", message);
+    fprintf(stdout, "Your hand: %s", message);
     
-
     fprintf(stdout, "Betting round starting\n");
 
     // betting round
@@ -181,6 +191,9 @@ void game_loop(int fd) {
         fprintf(stdout, "%s", newerResult);
         
         // choose which cards to discard
+        
+        
+
         
         // server will finally tell us that we are done
         result = read_from_fd(fd, 9);
