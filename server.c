@@ -23,7 +23,8 @@
 // 1: Wrong arguments
 // 2: Password too long
 // 3: Invalid port
-// 4: client unexpected exit
+// 4: Failed listen
+// 5: client unexpected exit
 
 // stores player info
 typedef struct Player {
@@ -55,7 +56,7 @@ void process_connections(int fdServer, GameInfo* games);
 int send_to_all(char* message, GameInfo* gameInfo);
 int check_valid_username(char* user, GameInfo* gameInfo);
 int read_from_all(char* message, GameInfo* gameInfo);
-
+int send_to_all_except(char* message, GameInfo* gameInfo, int except);
 
 int main(int argc, char** argv) {
 
@@ -202,7 +203,6 @@ void game_loop(GameInfo* gameInfo) {
     // print kitty 
     fprintf(stdout, "kitty: %s\n", return_hand(kitty, 3));
     
-
     fprintf(stdout, "Betting round starting\n");
 
     // ignore misere case for now
@@ -222,7 +222,13 @@ void game_loop(GameInfo* gameInfo) {
             
             // get bet from player 0
             char* msg = malloc(3 * sizeof(char));
-            read(gameInfo->player[p].fd, msg, 3);
+            if (read(gameInfo->player[p].fd, msg, 3) == -1) {
+                // player left early
+                fprintf(stderr, "Client disconnected early\n");
+                send_to_all_except("betexit\n", gameInfo, p);
+                exit(5);
+                
+            }
             
             char* send = malloc(BUFFER_LENGTH * sizeof(char));
 
@@ -338,8 +344,7 @@ void game_loop(GameInfo* gameInfo) {
     // kitty is over now
     fprintf(stdout, "Kitty finished\nGame Begins\n");
     
-    
-    
+
     
     // game is over. exit
     exit(0);
@@ -404,9 +409,9 @@ void process_connections(int fdServer, GameInfo* gameInfo) {
                         
                         // if we don't get a yes, then send a message that game 
                         // is not starting and we exit.
-                        fprintf(stderr, "Client disconnected early");
-                        send_to_all("nostr\n", gameInfo);
-                        exit(4);
+                        fprintf(stderr, "Client disconnected early\n");
+                        send_to_all_except("nostr\n", gameInfo, i);
+                        exit(5);
                         
                     }
                     
@@ -449,8 +454,19 @@ int check_valid_username(char* user, GameInfo* gameInfo) {
 
 // sends a message to all players
 int send_to_all(char* message, GameInfo* gameInfo) {
+    send_to_all_except(message, gameInfo, -1);
+    
+}
+
+// sends a message to all players, except the given one
+// this exists so the server doesn't send any messages on closing 
+// to fd's that have been closed after a failed read
+int send_to_all_except(char* message, GameInfo* gameInfo, int except) {
     for (int i = 0; i < 4; i++) {
-        write(gameInfo->player[i].fd, message, strlen(message));
+        if (i != except) {
+            write(gameInfo->player[i].fd, message, strlen(message));
+            
+        }
     }
     
     return 0;
@@ -503,7 +519,7 @@ int open_listen(int port, int* listenPort) {
     
     if (error == 1) {
         fprintf(stderr, "Failed listen\n");
-        exit(6);
+        exit(4);
     }
     
     return fd;

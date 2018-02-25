@@ -19,7 +19,8 @@
 // 1: Wrong arguments
 // 2: Wrong password
 // 3: Invalid username
-// 4: Unexpected exit
+// 4: Connect failed
+// 5: Unexpected exit
 
 // function declaration
 struct in_addr* name_to_IP_addr(char* hostname);
@@ -91,9 +92,9 @@ int main(int argc, char** argv) {
 
     }
     
-    fprintf(stderr, "Connected successfully!\n");
+    fprintf(stdout, "Connected successfully!\n");
     
-    // recieve start from server
+    // receive start from server
     read(fd, readBuffer, 6);
         
     // tell them yes, we are still here
@@ -101,7 +102,7 @@ int main(int argc, char** argv) {
     
     char* readBuffer2 = malloc(6 * sizeof(char));
     
-    // recieve start from server which lets us know everyone is here
+    // receive start from server which lets us know everyone is here
     read(fd, readBuffer2, 6); // confirmation
         
     if (strcmp(readBuffer2, "start\n") != 0) {
@@ -110,7 +111,7 @@ int main(int argc, char** argv) {
         
         // Close socket
         close(fd);
-        return 4;
+        return 5;
 
     }
     
@@ -119,7 +120,7 @@ int main(int argc, char** argv) {
     free(newBuffer);
     
     // take us to the game!
-    fprintf(stderr, "Game started!\n");
+    fprintf(stdout, "Game started!\n");
     game_loop(fd);
 
 }
@@ -163,12 +164,17 @@ void game_loop(int fd) {
             // betting round over
             break;
             
+        } else if (strcmp(result, "betexit") == 0) {
+            // bet ended unexpectedly, exit game
+            fprintf(stderr, "Unexpected exit\n");
+            close(fd);
+            exit(5);
+            
         } else {
             // server sent info on betting, print.
             fprintf(stdout, "%s\n", result);
             
         }
-        
         
     }
     
@@ -221,6 +227,7 @@ struct in_addr* name_to_IP_addr(char* hostname) {
     }
     // Extract the IP address and return it
     return &(((struct sockaddr_in*)(addressInfo->ai_addr))->sin_addr);
+    
 }
 
 // connects to the given ip address at the given port
@@ -232,7 +239,7 @@ int connect_to(struct in_addr* ipAddress, int port) {
     fd = socket(AF_INET, SOCK_STREAM, 0);
     if(fd < 0) {
         fprintf(stderr, "Connect failed\n");
-        exit(3);
+        exit(4);
     }
 
     // Populate server address structure with IP address and port number of
@@ -244,7 +251,7 @@ int connect_to(struct in_addr* ipAddress, int port) {
     // Attempt to connect to the server
     if(connect(fd, (struct sockaddr*)&socketAddr, sizeof(socketAddr)) < 0) {
         fprintf(stderr, "Connect failed\n");
-        exit(3);
+        exit(4);
     }
 
     // Now have connected socket
