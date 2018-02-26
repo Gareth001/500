@@ -49,20 +49,20 @@ int main(int argc, char** argv) {
     
     // Establish a connection to given port
     fd = connect_to(ipAddress, port);
-        
-    // prepare first message
-    char* message = malloc(MAX_PASS_LENGTH * sizeof(char));
-        
+    
     // send the password
-    sprintf(message, "%s\n", argv[2]);
-    write(fd, message, strlen(message));
-    free(message);
+    {
+        char* message = malloc(BUFFER_LENGTH * sizeof(char));
+        sprintf(message, "%s\n", argv[2]);
+        write(fd, message, strlen(message));
     
-        
-    char* readBuffer = malloc(5 * sizeof(char));
+    }
+    
+    char* readBuffer = malloc(6 * sizeof(char)); // we will reuse this
+    
+    read(fd, readBuffer, 4); // confirmation
 
-    read(fd, readBuffer, 4); // we expect either yes\n or no\n, so 4 char
-    
+    // read yes from server, otherwise exit
     if (strcmp(readBuffer, "yes\n") != 0) {
         // exit
         fprintf(stderr, "Auth failed\n");
@@ -73,12 +73,11 @@ int main(int argc, char** argv) {
 
     } 
     
-    // otherwise it worked
-    char* newBuffer = malloc(BUFFER_LENGTH * sizeof(char));
-    
+    char* message = malloc(BUFFER_LENGTH * sizeof(char));
+
     // send player name
-    sprintf(newBuffer, "%s\n", argv[3]);
-    write(fd, newBuffer, strlen(newBuffer));
+    sprintf(message, "%s\n", argv[3]);
+    write(fd, message, strlen(message));
     
     read(fd, readBuffer, 4); // confirmation
         
@@ -99,13 +98,12 @@ int main(int argc, char** argv) {
         
     // tell them yes, we are still here
     write(fd, "yes\n", 4);
-    
-    char* readBuffer2 = malloc(6 * sizeof(char));
-    
-    // receive start from server which lets us know everyone is here
-    read(fd, readBuffer2, 6); // confirmation
         
-    if (strcmp(readBuffer2, "start\n") != 0) {
+    // receive start from server which lets us know everyone is here
+    // server will either send start\n or something else
+    //read(fd, readBuffer, 6);
+        
+    if (strcmp(read_from_fd(fd, 7), "start") != 0) {
         // exit
         fprintf(stderr, "Unexpected exit\n");
         
@@ -116,8 +114,7 @@ int main(int argc, char** argv) {
     }
     
     free(readBuffer);
-    free(readBuffer2);
-    free(newBuffer);
+    free(message);
     
     // take us to the game!
     fprintf(stdout, "Game started!\n");
@@ -130,10 +127,10 @@ void game_loop(int fd) {
 
     // here we first receive all the players names in the game from the server.
     fprintf(stdout, "Players Connected:\n");
-
+    
     for (int i = 0; i < 4; i++) {
-        char* readBuffer = read_from_fd(fd, BUFFER_LENGTH);
-        fprintf(stdout, "%s\n", readBuffer);
+        // print the players details from the server
+        fprintf(stdout, "%s\n", read_from_fd(fd, BUFFER_LENGTH));
         
         // send yes to server, to tell them we got it
         write(fd, "yes\n", 4);
@@ -141,9 +138,7 @@ void game_loop(int fd) {
     }
         
     // print out all the cards from the server
-    char* message = malloc(BUFFER_LENGTH * sizeof(char));
-    read(fd, message, BUFFER_LENGTH);
-    fprintf(stdout, "Your hand: %s", message);
+    fprintf(stdout, "Your hand: %s\n", read_from_fd(fd, BUFFER_LENGTH));
     
     fprintf(stdout, "Betting round starting\n");
 
@@ -179,22 +174,18 @@ void game_loop(int fd) {
     }
     
     // result from betting round here
-    char* result = read_from_fd(fd, BUFFER_LENGTH);
-    fprintf(stdout, "%s\nWaiting for Kitty\n", result);
+    fprintf(stdout, "%s\n", read_from_fd(fd, BUFFER_LENGTH));
     
-    // find if we won or didn't 
-    char* newResult = read_from_fd(fd, 10);
-        
-    if (strcmp(newResult, "kittywin") == 0) {
-        // this player won the kitty bet.
-        
-        // send that we are ready for more
+    fprintf(stdout, "Waiting for Kitty\n");
+    
+    // read from server if we won the bet or not
+    if (strcmp(read_from_fd(fd, 10), "kittywin") == 0) {
+   
+        // we won! send that we are ready for more
         write(fd, "yes\n", 4);
         
-        // read our current deck from the server 
-        char* newerResult = malloc(BUFFER_LENGTH * sizeof(char));
-        read(fd, newerResult, BUFFER_LENGTH);
-        fprintf(stdout, "%s", newerResult);
+        // get deck (with kitty) from player
+        fprintf(stdout, "%s\n", read_from_fd(fd, BUFFER_LENGTH));
         
         // choose which cards to discard
         
@@ -202,7 +193,7 @@ void game_loop(int fd) {
 
         
         // server will finally tell us that we are done
-        result = read_from_fd(fd, 9);
+        read_from_fd(fd, 9); // this should be kittyend\n, TBA
         
     } 
     

@@ -24,7 +24,7 @@
 // 2: Password too long
 // 3: Invalid port
 // 4: Failed listen
-// 5: client unexpected exit
+// 5: Unexpected exit
 
 // stores player info
 typedef struct Player {
@@ -130,8 +130,9 @@ void game_loop(GameInfo* gameInfo) {
             write(gameInfo->player[i].fd, message, strlen(message));
             
             // await yes from user (maybe check?)
-            char* buffer = malloc(4 * sizeof(char));
-            read(gameInfo->player[i].fd, buffer, 4);
+            read_from_fd(gameInfo->player[i].fd, 5);
+            //char* buffer = malloc(4 * sizeof(char));
+            //read(gameInfo->player[i].fd, buffer, 4);
             
         }
         
@@ -224,7 +225,7 @@ void game_loop(GameInfo* gameInfo) {
             char* msg = malloc(3 * sizeof(char));
             if (read(gameInfo->player[p].fd, msg, 3) == -1) {
                 // player left early
-                fprintf(stderr, "Client disconnected early\n");
+                fprintf(stderr, "Unexpected exit\n");
                 send_to_all_except("betexit\n", gameInfo, p);
                 exit(5);
                 
@@ -324,9 +325,7 @@ void game_loop(GameInfo* gameInfo) {
     write(gameInfo->player[p].fd, "kittywin\n", 9);
     
     // make sure player is ready for input
-    //char* msg3 = malloc(4 * sizeof(char));
-    //read(gameInfo->player[p].fd, msg3, 4);
-    read_from_fd(gameInfo->player[p].fd, 4);
+    read_from_fd(gameInfo->player[p].fd, 5);
   
     // prepare string to send to the winner
     char* msg2 = malloc(BUFFER_LENGTH * sizeof(char));
@@ -409,7 +408,7 @@ void process_connections(int fdServer, GameInfo* gameInfo) {
                         
                         // if we don't get a yes, then send a message that game 
                         // is not starting and we exit.
-                        fprintf(stderr, "Client disconnected early\n");
+                        fprintf(stderr, "Unexpected exit\n");
                         send_to_all_except("nostr\n", gameInfo, i);
                         exit(5);
                         
@@ -454,7 +453,7 @@ int check_valid_username(char* user, GameInfo* gameInfo) {
 
 // sends a message to all players
 int send_to_all(char* message, GameInfo* gameInfo) {
-    send_to_all_except(message, gameInfo, -1);
+    return send_to_all_except(message, gameInfo, -1);
     
 }
 

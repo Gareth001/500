@@ -23,17 +23,20 @@ char* read_from_fd(int fd, int length) {
     int i;
     
     for (i = 0; i < length - 1; i++) {
-        
-        read(fd, charBuffer, 1);
-        
-        if (charBuffer[0] != '\n') {
-            buffer[i] = charBuffer[0];
+
+        if (read(fd, charBuffer, 1) != 1) {
+            // exit on bad read
+            fprintf(stderr, "Unexpected exit\n");
+            exit(5);
             
+        } else if (charBuffer[0] != '\n') {
+            buffer[i] = charBuffer[0];
+        
         } else {
             break;
             
         }
-        
+
     }
     
     free(charBuffer);
