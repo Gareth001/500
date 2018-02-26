@@ -130,9 +130,7 @@ void game_loop(GameInfo* gameInfo) {
             write(gameInfo->player[i].fd, message, strlen(message));
             
             // await yes from user (maybe check?)
-            read_from_fd(gameInfo->player[i].fd, 5);
-            //char* buffer = malloc(4 * sizeof(char));
-            //read(gameInfo->player[i].fd, buffer, 4);
+            read_from_fd(gameInfo->player[i].fd, BUFFER_LENGTH);
             
         }
         
@@ -184,7 +182,7 @@ void game_loop(GameInfo* gameInfo) {
     
     // send each player their deck
     for (int i = 0; i < 4; i++) {
-        char* message = malloc(100 * sizeof(char));
+        char* message = malloc(BUFFER_LENGTH * sizeof(char));
         sprintf(message, "%s\n", return_hand(gameInfo->player[i].deck, 10));
         write(gameInfo->player[i].fd, message, strlen(message));
         
@@ -196,7 +194,7 @@ void game_loop(GameInfo* gameInfo) {
     // print each players hand
     for (int i = 0; i < 4; i++) {
         fprintf(stdout, "Player %d: %s\n", i,
-                return_hand(gameInfo->player[i].deck, 10));
+                return_hand(gameInfo->player[i].deck, 13)); // 13 for kitty
         
         
     }
@@ -222,8 +220,8 @@ void game_loop(GameInfo* gameInfo) {
             write(gameInfo->player[p].fd, "bet\n", 4);
             
             // get bet from player 0
-            char* msg = malloc(3 * sizeof(char));
-            if (read(gameInfo->player[p].fd, msg, 3) == -1) {
+            char* msg = malloc(BUFFER_LENGTH * sizeof(char));
+            if (read(gameInfo->player[p].fd, msg, BUFFER_LENGTH) == -1) {
                 // player left early
                 fprintf(stderr, "Unexpected exit\n");
                 send_to_all_except("betexit\n", gameInfo, p);
@@ -241,43 +239,13 @@ void game_loop(GameInfo* gameInfo) {
                 pPassed++;
                 
             } else {
-                // ensure length of message is correct
-                if (strlen(msg) != 3) {
-                    continue;
-                }
                 
-                int newBet = 0;
-                Trump newSuite = 0;
-                
-                // read value, with special case '0' = 10
-                newBet = (msg[0] == '0') ? 10 : msg[0] - 48;
-                                    
-                // make sure value is valid
-                if (newBet < 6 || newBet > 10) {
-                    continue;
-                }
-                
-                newSuite = return_trump(msg[1]);
-                
-                // check for default case
-                if (newSuite == -1) {
-                    continue;
-                }
-
-                // so the input is valid, now check if the bet is higher 
-                // than the last one.
-                // if the number is higher, that guarantees a higher bet.
-                if (newBet > highestBet || (newBet == highestBet &&
-                        newSuite > suite)) {
-                
-                    highestBet = newBet;
-                    suite = newSuite;
-                            
-                } else {
+                // check if the bet was valid
+                if (valid_bet(&highestBet, &suite, msg) != 0) {
                     continue;
                     
                 }
-                    
+                                 
                 // string to send to all players
                 sprintf(send, "Player %d bet %d%c\n", p, highestBet,
                         return_trump_char(suite)); 
@@ -309,33 +277,73 @@ void game_loop(GameInfo* gameInfo) {
     }
     
     // send winning bet to all players
-    char* msg = malloc(BUFFER_LENGTH * sizeof(char));
-    sprintf(msg, "Player %d won the bet with %d%c!\n", p, highestBet, 
-            return_trump_char(suite));
-    fprintf(stdout, "%s", msg);
-    send_to_all(msg, gameInfo);
-
+    {
+        char* msg = malloc(BUFFER_LENGTH * sizeof(char));
+        sprintf(msg, "Player %d won the bet with %d%c!\n", p, highestBet, 
+                return_trump_char(suite));
+        fprintf(stdout, "%s", msg);
+        send_to_all(msg, gameInfo);
+    }
+    
     fprintf(stdout, "Dealing kitty\n");
     
     // send the winner of the betting round the 13 cards they have to
     // choose from, the player will send the three they don't want
-    // and the server will handle it
     
     // send message to winner that they are to receive kitty data
     write(gameInfo->player[p].fd, "kittywin\n", 9);
     
-    // make sure player is ready for input
-    read_from_fd(gameInfo->player[p].fd, 5);
+    // make sure player is ready for input. should be yes\n
+    read_from_fd(gameInfo->player[p].fd, BUFFER_LENGTH);
+  
+    // add kitty to the winners hand
+    for (int i = 0; i < 3; i++) {
+        gameInfo->player[p].deck[10 + i] = kitty[i];
+        
+    }
   
     // prepare string to send to the winner
-    char* msg2 = malloc(BUFFER_LENGTH * sizeof(char));
-    sprintf(msg2, "You won! Pick 3 cards to discard: %s %s\n",
-            return_hand(gameInfo->player[p].deck, 10), return_hand(kitty, 3));
-    write(gameInfo->player[p].fd, msg2, strlen(msg2));
+    {
+        char* msg = malloc(BUFFER_LENGTH * sizeof(char));
+        sprintf(msg, "You won! Pick 3 cards to discard: %s\n",
+                return_hand(gameInfo->player[p].deck, 13));
+        write(gameInfo->player[p].fd, msg, strlen(msg));
+    }
     
     // receive 3 cards the user wants to discard
-    
-    
+    int c = 0;
+    while (c != 3) {
+        
+        // get card from this player
+        char* msg = malloc(BUFFER_LENGTH * sizeof(char));
+        if (read(gameInfo->player[p].fd, msg, BUFFER_LENGTH) == -1) {
+            // player left early
+            fprintf(stderr, "Unexpected exit\n");
+            send_to_all_except("kittybad\n", gameInfo, p);
+            exit(5);
+            
+        }
+        
+        // check if card is valid and then remove it from the players deck
+        
+        // move this to a function!
+        // ensure the card is valid
+        Card card = return_card_from_string(msg);
+        
+        // check if the card was valid
+        if (card.value == 0) {
+            c--; // ensure card round continues if it wasn't valid
+            
+        }
+
+
+        // card was successful, ask for more
+        if (++c != 3) {
+            write(gameInfo->player[p].fd, "more\n", 5); // make player loop
+            
+        }
+        
+    }
     
     // send kitty done to all
     send_to_all("kittyend\n", gameInfo);
@@ -400,7 +408,7 @@ void process_connections(int fdServer, GameInfo* gameInfo) {
                 // send start to all players
                 send_to_all("start\n", gameInfo);
                 
-                // we want a yes from all players
+                // we want a yes from all players to ensure they are still here
                 for (int i = 0; i < 4; i++) {
                     
                     char* buf = malloc(4 * sizeof(char));

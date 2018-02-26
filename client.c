@@ -13,7 +13,6 @@
 #include <arpa/inet.h>
 
 #include "shared.h"
-#include "cards.h"
 
 // Exit Statuses
 // 1: Wrong arguments
@@ -60,7 +59,7 @@ int main(int argc, char** argv) {
     
     char* readBuffer = malloc(6 * sizeof(char)); // we will reuse this
     
-    read(fd, readBuffer, 4); // confirmation
+    read(fd, readBuffer, BUFFER_LENGTH); // confirmation
 
     // read yes from server, otherwise exit
     if (strcmp(readBuffer, "yes\n") != 0) {
@@ -79,7 +78,7 @@ int main(int argc, char** argv) {
     sprintf(message, "%s\n", argv[3]);
     write(fd, message, strlen(message));
     
-    read(fd, readBuffer, 4); // confirmation
+    read(fd, readBuffer, BUFFER_LENGTH); // confirmation
         
     if (strcmp(readBuffer, "yes\n") != 0) {
         // exit
@@ -94,7 +93,7 @@ int main(int argc, char** argv) {
     fprintf(stdout, "Connected successfully!\n");
     
     // receive start from server
-    read(fd, readBuffer, 6);
+    read(fd, readBuffer, BUFFER_LENGTH);
         
     // tell them yes, we are still here
     write(fd, "yes\n", 4);
@@ -103,7 +102,7 @@ int main(int argc, char** argv) {
     // server will either send start\n or something else
     //read(fd, readBuffer, 6);
         
-    if (strcmp(read_from_fd(fd, 7), "start") != 0) {
+    if (strcmp(read_from_fd(fd, BUFFER_LENGTH), "start") != 0) {
         // exit
         fprintf(stderr, "Unexpected exit\n");
         
@@ -148,12 +147,12 @@ void game_loop(int fd) {
         char* result = read_from_fd(fd, BUFFER_LENGTH);
 
         if (strcmp(result, "bet") == 0) {
+
             fprintf(stdout, "Your bet!\n");
-            
             // send a bet from the player input
-            char* buff = malloc(4 * sizeof(char));
-            fgets(buff, 4, stdin);
-            write(fd, buff, 3);
+            char* buff = malloc(BUFFER_LENGTH * sizeof(char));
+            fgets(buff, BUFFER_LENGTH, stdin);
+            write(fd, buff, strlen(buff));
             
         } else if (strcmp(result, "betover") == 0) {
             // betting round over
@@ -178,24 +177,47 @@ void game_loop(int fd) {
     
     fprintf(stdout, "Waiting for Kitty\n");
     
-    // read from server if we won the bet or not
-    if (strcmp(read_from_fd(fd, 10), "kittywin") == 0) {
-   
-        // we won! send that we are ready for more
-        write(fd, "yes\n", 4);
+    // kitty
+    {
+        char* result = read_from_fd(fd, BUFFER_LENGTH);
         
-        // get deck (with kitty) from player
-        fprintf(stdout, "%s\n", read_from_fd(fd, BUFFER_LENGTH));
+        // read from server if we won the bet or not
+        if (strcmp(result, "kittywin") == 0) {
+       
+            // we won! send that we are ready for more
+            write(fd, "yes\n", 4);
+            
+            // get deck (with kitty) from player
+            fprintf(stdout, "%s\n", read_from_fd(fd, BUFFER_LENGTH));
+            
+            // loop until we get 
+            while (1) {
+                
+                fprintf(stdout, "Pick a card!\n");
+                // send a card to discard
+                char* buff = malloc(BUFFER_LENGTH * sizeof(char));
+                fgets(buff, BUFFER_LENGTH, stdin);
+                write(fd, buff, strlen(buff));
+                
+                if (strcmp(read_from_fd(fd, BUFFER_LENGTH), "kittyend") == 0) {
+                    // we are done after getting a kittyend. anything else
+                    // and we just continue 
+                    break;
+                    
+                }
+                
+            }
+             
+        } else if (strcmp(result, "kittybad") == 0) {
+            
+            // game ended unexpectedly
+            fprintf(stderr, "Unexpected exit\n");
+            close(fd);
+            exit(5);
+            
+        }
         
-        // choose which cards to discard
-        
-        
-
-        
-        // server will finally tell us that we are done
-        read_from_fd(fd, 9); // this should be kittyend\n, TBA
-        
-    } 
+    }
     
     // kitty is over now
     fprintf(stdout, "Kitty finished\nGame Begins\n");

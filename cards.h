@@ -47,4 +47,12 @@ int compare_cards(Card* a, Card* b, Trump trump);
 // returns an array of 43 cards, not shuffled.
 Card* create_deck();
 
+// checks if a bet is valid, and sets the new highest bet if it is, 
+// returns 0 if it is a valid bet, 1 otherwise
+int valid_bet(int* highestBet, int* suite, char* msg);
+
+// given a string representation of a card, this returns a card representing 
+// that string, or a card with 0 value and 0 suite if unsuccessful 
+Card return_card_from_string(char* card);
+
 #endif /* CARDS_H */ 
