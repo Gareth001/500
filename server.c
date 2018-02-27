@@ -145,7 +145,7 @@ void game_loop(GameInfo* gameInfo) {
     
     // malloc all players decks
     for (int i = 0; i < 4; i++) {
-        gameInfo->player[i].deck = malloc(10 * sizeof(Card));
+        gameInfo->player[i].deck = malloc(13 * sizeof(Card)); // 13 for kitty
         gameInfo->player[i].hasPassed = false; // set this property too
         
     }
@@ -194,7 +194,7 @@ void game_loop(GameInfo* gameInfo) {
     // print each players hand
     for (int i = 0; i < 4; i++) {
         fprintf(stdout, "Player %d: %s\n", i,
-                return_hand(gameInfo->player[i].deck, 13)); // 13 for kitty
+                return_hand(gameInfo->player[i].deck, 10)); 
         
         
     }
@@ -241,7 +241,7 @@ void game_loop(GameInfo* gameInfo) {
             } else {
                 
                 // check if the bet was valid
-                if (valid_bet(&highestBet, &suite, msg) != 0) {
+                if (valid_bet(&highestBet, &suite, msg) == false) {
                     continue;
                     
                 }
@@ -313,6 +313,12 @@ void game_loop(GameInfo* gameInfo) {
     // receive 3 cards the user wants to discard
     int c = 0;
     while (c != 3) {
+
+        // send user a string of how many cards we still need
+        char* message = malloc(BUFFER_LENGTH * sizeof(char));
+        sprintf(message, "Pick %d more cards!\n", 3 - c);
+        
+        write(gameInfo->player[p].fd, message, strlen(message)); 
         
         // get card from this player
         char* msg = malloc(BUFFER_LENGTH * sizeof(char));
@@ -332,16 +338,19 @@ void game_loop(GameInfo* gameInfo) {
         
         // check if the card was valid
         if (card.value == 0) {
-            c--; // ensure card round continues if it wasn't valid
+            // don't add to c
+            
+        } else if (remove_card_from_deck(card, &gameInfo->player[p].deck,
+                13 - c) == false) {
+            
+            // try and remove the card from the deck, 
+            
+        } else {
+            // otherwise it was a success, we need 1 less card now
+            c++;
             
         }
 
-
-        // card was successful, ask for more
-        if (++c != 3) {
-            write(gameInfo->player[p].fd, "more\n", 5); // make player loop
-            
-        }
         
     }
     

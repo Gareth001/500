@@ -179,7 +179,7 @@ void game_loop(int fd) {
     
     // kitty
     {
-        char* result = read_from_fd(fd, BUFFER_LENGTH);
+        char* result = read_from_fd(fd, BUFFER_LENGTH); // kittywin or not 
         
         // read from server if we won the bet or not
         if (strcmp(result, "kittywin") == 0) {
@@ -190,21 +190,35 @@ void game_loop(int fd) {
             // get deck (with kitty) from player
             fprintf(stdout, "%s\n", read_from_fd(fd, BUFFER_LENGTH));
             
-            // loop until we get 
+            // loop until we get kittyend
             while (1) {
                 
-                fprintf(stdout, "Pick a card!\n");
+                char* message = read_from_fd(fd, BUFFER_LENGTH);
+                             
+                if (strcmp(message, "kittyend") == 0) {
+                    // we are done after getting a kittyend. anything else
+                    // and we just continue 
+                    break;
+                    
+                } else {
+                    // otherwise server sent us info on how many cards we need
+                    // to still receive, print this
+                    fprintf(stdout, "%s\n", message);
+                    
+                }
+                
+                //fprintf(stdout, "Pick a card!\n");
                 // send a card to discard
                 char* buff = malloc(BUFFER_LENGTH * sizeof(char));
                 fgets(buff, BUFFER_LENGTH, stdin);
                 write(fd, buff, strlen(buff));
                 
-                if (strcmp(read_from_fd(fd, BUFFER_LENGTH), "kittyend") == 0) {
+                //if (strcmp(read_from_fd(fd, BUFFER_LENGTH), "kittyend") == 0) {
                     // we are done after getting a kittyend. anything else
                     // and we just continue 
-                    break;
+                //    break;
                     
-                }
+                //} 
                 
             }
              

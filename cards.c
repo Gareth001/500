@@ -41,24 +41,24 @@ Card* create_deck() {
 }
 
 // returns a human readable representation of the card
-char* return_card(Card* card) {
+char* return_card(Card card) {
     
     // get rid of joker case first
-    if (card->value == 15) {
+    if (card.value == 15) {
         return "JO";
     }
     
     char* ret = malloc(2 * sizeof(char));
      
     // get card value
-    if (card->value <= 9) {
-        ret[0] = card->value + 48;
+    if (card.value <= 9) {
+        ret[0] = card.value + 48;
         
-    } else if (card->value == 10) {
+    } else if (card.value == 10) {
         ret[0] = 48;
         
     } else {
-        switch (card->value) {
+        switch (card.value) {
             case 11:
                 ret[0] = 'J';
                 break;
@@ -77,7 +77,7 @@ char* return_card(Card* card) {
     }
 
     // get card suite and return our result
-    ret[1] = return_trump_char(card->suite);
+    ret[1] = return_trump_char(card.suite);
     return ret;
     
 }
@@ -161,7 +161,7 @@ char* return_hand(Card* cards, int num) {
     char* message = malloc(num * 3 * sizeof(char));
     
     for (int i = 0; i < num; i++) {
-        strcat(message, return_card(&cards[i]));
+        strcat(message, return_card(cards[i]));
         if (i < num - 1) {
             strcat(message, " ");
             
@@ -211,13 +211,29 @@ Trump return_trump(char trump) {
     
 }
 
+// removes the given card from the given deck. Returns true if successful, 
+// false otherwise
+bool remove_card_from_deck(Card card, Card** deck, int cards) {
+    for (int i = 0; i < cards; i++) {
+        if (compare_cards(card, (*deck)[i], 0) == 0) {
+            // cards are equal - remove this card from the deck
+            return true;
+            
+        }
+        
+    }
+    
+    return false;
+    
+}
+
 // checks if a bet is valid, and sets the new highest bet if it is, 
-// returns 0 if it is a valid bet, 1 otherwise
-int valid_bet(int* highestBet, int* suite, char* msg) {
+// returns true if it is a valid bet, false otherwise
+bool valid_bet(int* highestBet, int* suite, char* msg) {
     
     // ensure length of message is correct
     if (strlen(msg) != 3) {
-        return 1;
+        return false;
     }
     
     int newBet = 0;
@@ -228,14 +244,14 @@ int valid_bet(int* highestBet, int* suite, char* msg) {
                         
     // make sure value is valid
     if (newBet < 6 || newBet > 10) {
-        return 1;
+        return false;
     }
     
     newSuite = return_trump(msg[1]);
     
     // check for default case from return_trump
     if (newSuite == -1) {
-        return 1;
+        return false;
     }
 
     // so the input is valid, now check if the bet is higher 
@@ -247,31 +263,38 @@ int valid_bet(int* highestBet, int* suite, char* msg) {
         *suite = newSuite;
                 
     } else {
-        return 1;
+        return false;
         
     }
     
-    return 0;
+    return true;
     
 }
 
 // Compares 2 given cards with the current trump.
 // return -1 if card a < card b 
 // return 1 if card a > card b
-int compare_cards(Card* a, Card* b, Trump trump) {
+// return 0 if card a == card b
+int compare_cards(Card a, Card b, Trump trump) {
     // no trump case is handled here because the given trump will be the 
     // suite of the first card played.
+    
+    // first, get rid of case for equal
+    if (a.value == b.value && a.suite == b.suite) {
+        return 0;
+        
+    }
     
     // first, cases where one card is the trump and the other isnt.
     // the other case is when either both or none are trump, and the highest 
     // card wins this time.
-    if (a->suite == trump && b->suite != trump) {
+    if (a.suite == trump && b.suite != trump) {
         return 1;
         
-    } else if (a->suite != trump && b->suite == trump) {
+    } else if (a.suite != trump && b.suite == trump) {
         return -1; 
         
-    } else if (a->value > b->value) {
+    } else if (a.value > b.value) {
         return 1;
         
     } else {

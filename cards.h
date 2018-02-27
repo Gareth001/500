@@ -1,6 +1,8 @@
 #ifndef CARDS_H 
 #define CARDS_H 
 
+#include <stdbool.h>
+
 // Cards. We store a value (4, 7, king, ace etc) and a suite (spades etc).
 // In the case of the joker, the value is set to 15 and the suite is set as 
 // the trump in the case of a normal game and the chosen suite if no trumps is
@@ -27,7 +29,7 @@ typedef int Trump;
 
 
 // returns a human readable representation of the card
-char* return_card(Card* card);
+char* return_card(Card card);
 
 // returns a character representing the trump.
 char return_trump_char(Trump trump);
@@ -42,17 +44,22 @@ char* return_hand(Card* cards, int num);
 // Compares 2 given cards with the current trump.
 // return -1 if card a < card b 
 // return 1 if card a > card b
-int compare_cards(Card* a, Card* b, Trump trump);
+// return 0 if card a == card b
+int compare_cards(Card a, Card b, Trump trump);
 
 // returns an array of 43 cards, not shuffled.
 Card* create_deck();
 
 // checks if a bet is valid, and sets the new highest bet if it is, 
-// returns 0 if it is a valid bet, 1 otherwise
-int valid_bet(int* highestBet, int* suite, char* msg);
+// returns true if it is a valid bet, false otherwise
+bool valid_bet(int* highestBet, int* suite, char* msg);
 
 // given a string representation of a card, this returns a card representing 
 // that string, or a card with 0 value and 0 suite if unsuccessful 
 Card return_card_from_string(char* card);
+
+// removes the given card from the given deck, with given number of cards.
+// returns true if successful, false otherwise
+bool remove_card_from_deck(Card card, Card** deck, int cards);
 
 #endif /* CARDS_H */ 
