@@ -236,7 +236,11 @@ void game_loop(int fd) {
     // kitty is over now
     fprintf(stdout, "Kitty finished\nGame Begins\n");
 
-
+    // print out all the cards from the server
+    fprintf(stdout, "Your hand: %s\n", read_from_fd(fd, BUFFER_LENGTH));
+    
+    
+    
     // Close socket
     close(fd);
     exit(0);

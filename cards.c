@@ -213,10 +213,16 @@ Trump return_trump(char trump) {
 
 // removes the given card from the given deck. Returns true if successful, 
 // false otherwise
-bool remove_card_from_deck(Card card, Card** deck, int cards) {
+bool remove_card_from_deck(Card card, Card** deck, int cards) {    
     for (int i = 0; i < cards; i++) {
         if (compare_cards(card, (*deck)[i], 0) == 0) {
             // cards are equal - remove this card from the deck
+            for (int j = i + 1; j < cards; j++) {
+                (*deck)[i] = (*deck)[j];
+                
+            }
+            
+            // removal success
             return true;
             
         }
@@ -279,8 +285,9 @@ int compare_cards(Card a, Card b, Trump trump) {
     // no trump case is handled here because the given trump will be the 
     // suite of the first card played.
     
-    // first, get rid of case for equal
-    if (a.value == b.value && a.suite == b.suite) {
+    // first, get rid of case for equal (and joker)
+    if ((a.value == b.value && a.suite == b.suite) || (a.value == 15 && 
+            b.value == 15)) {
         return 0;
         
     }

@@ -57,6 +57,7 @@ int send_to_all(char* message, GameInfo* gameInfo);
 int check_valid_username(char* user, GameInfo* gameInfo);
 int read_from_all(char* message, GameInfo* gameInfo);
 int send_to_all_except(char* message, GameInfo* gameInfo, int except);
+bool send_deck_to_all(int cards, GameInfo* gameInfo);
 
 int main(int argc, char** argv) {
 
@@ -181,13 +182,8 @@ void game_loop(GameInfo* gameInfo) {
     
     
     // send each player their deck
-    for (int i = 0; i < 4; i++) {
-        char* message = malloc(BUFFER_LENGTH * sizeof(char));
-        sprintf(message, "%s\n", return_hand(gameInfo->player[i].deck, 10));
-        write(gameInfo->player[i].fd, message, strlen(message));
-        
-    }
-    
+    send_deck_to_all(10, gameInfo);
+
     // debugging, print deck
     fprintf(stdout, "Deck: %s\n", return_hand(deck, 43));
     
@@ -360,6 +356,9 @@ void game_loop(GameInfo* gameInfo) {
     // kitty is over now
     fprintf(stdout, "Kitty finished\nGame Begins\n");
     
+    // send each player their deck now that it's started
+    send_deck_to_all(10, gameInfo);
+    
 
     
     // game is over. exit
@@ -489,6 +488,20 @@ int send_to_all_except(char* message, GameInfo* gameInfo, int except) {
     
 }
 
+// send each player their deck
+bool send_deck_to_all(int cards, GameInfo* gameInfo) {
+    // send each player their deck
+    for (int i = 0; i < 4; i++) {
+        char* message = malloc(BUFFER_LENGTH * sizeof(char));
+        sprintf(message, "%s\n", return_hand(gameInfo->player[i].deck, cards));
+        write(gameInfo->player[i].fd, message, strlen(message));
+        
+    }
+    
+    return true;
+    
+}
+    
 // opens the port for listening, exits with error if didn't work also writes
 // the listenPort
 int open_listen(int port, int* listenPort) {
