@@ -31,20 +31,21 @@ void game_loop(int fd);
 int main(int argc, char** argv) {
 
     // argument checking
-    if (argc != 4) {
-        fprintf(stderr, "client.exe port password username\n");
+    if (argc != 5) {
+        fprintf(stderr, "client.exe ipaddr port password username\n");
         return 1;
+        
     }
 
     // port, validity is checked when connecting
-    int port = atoi(argv[1]); 
+    int port = atoi(argv[2]); 
            
     // connect to given port
     int fd;
     struct in_addr* ipAddress;
     
     // Convert hostname to IP address
-    ipAddress = name_to_IP_addr("0");
+    ipAddress = name_to_IP_addr(argv[1]);
     
     // Establish a connection to given port
     fd = connect_to(ipAddress, port);
@@ -52,7 +53,7 @@ int main(int argc, char** argv) {
     // send the password
     {
         char* message = malloc(BUFFER_LENGTH * sizeof(char));
-        sprintf(message, "%s\n", argv[2]);
+        sprintf(message, "%s\n", argv[3]);
         write(fd, message, strlen(message));
     
     }
@@ -75,7 +76,7 @@ int main(int argc, char** argv) {
     char* message = malloc(BUFFER_LENGTH * sizeof(char));
 
     // send player name
-    sprintf(message, "%s\n", argv[3]);
+    sprintf(message, "%s\n", argv[4]);
     write(fd, message, strlen(message));
     
     read(fd, readBuffer, BUFFER_LENGTH); // confirmation
@@ -207,22 +208,14 @@ void game_loop(int fd) {
                     
                 }
                 
-                //fprintf(stdout, "Pick a card!\n");
                 // send a card to discard
                 char* buff = malloc(BUFFER_LENGTH * sizeof(char));
                 fgets(buff, BUFFER_LENGTH, stdin);
                 write(fd, buff, strlen(buff));
-                
-                //if (strcmp(read_from_fd(fd, BUFFER_LENGTH), "kittyend") == 0) {
-                    // we are done after getting a kittyend. anything else
-                    // and we just continue 
-                //    break;
-                    
-                //} 
-                
+                                
             }
              
-        } else if (strcmp(result, "kittybad") == 0) {
+        } else if (strcmp(result, "kittyend") != 0) {
             
             // game ended unexpectedly
             fprintf(stderr, "Unexpected exit\n");
@@ -236,10 +229,50 @@ void game_loop(int fd) {
     // kitty is over now
     fprintf(stdout, "Kitty finished\nGame Begins\n");
 
-    // print out all the cards from the server
-    fprintf(stdout, "Your hand: %s\n", read_from_fd(fd, BUFFER_LENGTH));
+    // game loop
+    while (1) {
+        
+        // get hand from server
+        fprintf(stdout, "Your hand: %s\n", read_from_fd(fd, BUFFER_LENGTH));
+        
+        // get round number from server
+        fprintf(stdout, "%s\n", read_from_fd(fd, BUFFER_LENGTH));
+        
+        while (1) {
+            
+            char* result = read_from_fd(fd, BUFFER_LENGTH);
+            
+            if (strcmp("send", result) == 0) {
+                // send card to server
+                fprintf(stdout, "Choose card to play\n");
+                char* buff = malloc(BUFFER_LENGTH * sizeof(char));
+                fgets(buff, BUFFER_LENGTH, stdin);
+                write(fd, buff, strlen(buff));                
+                
+            } else if (strcmp("roundover", result) == 0) {
+                // round over
+                break;
+             
+            } else if (strcmp("end", result) == 0){
+                // game ended unexpectedly
+                fprintf(stderr, "Unexpected exit\n");
+                close(fd);
+                exit(5);
+            
+            } else {
+                fprintf(stdout, "%s\n", result);
+                
+            }
+            
+        }
+        
+        // get number of tricks betting team has won
+        fprintf(stdout, "%s\n", read_from_fd(fd, BUFFER_LENGTH));
+        
+    }
     
-    
+    // get final result of the game
+    fprintf(stdout, "%s\n", read_from_fd(fd, BUFFER_LENGTH));
     
     // Close socket
     close(fd);

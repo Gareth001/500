@@ -5,6 +5,14 @@
 
 #include "cards.h"
 
+#define JOKER_VALUE 17
+#define JACK_VALUE 11
+#define QUEEN_VALUE 12
+#define KING_VALUE 13
+#define ACE_VALUE 14
+#define LEFT_BOWER_VALUE 15 // jack of trump colour
+#define RIGHT_BOWER_VALUE 16 // jack of trump suite
+
 // returns an array of 43 cards, not shuffled.
 Card* create_deck() {
     Card* deck = malloc(43 * sizeof(Card));
@@ -29,8 +37,8 @@ Card* create_deck() {
         
     }
     
-    // add joker. Default to 4 for now, this will mean something is wrong later
-    deck[j].value = 15;
+    // add joker. default to 4
+    deck[j].value = JOKER_VALUE;
     deck[j].suite = 4;
     
     // shuffle here
@@ -44,31 +52,37 @@ Card* create_deck() {
 char* return_card(Card card) {
     
     // get rid of joker case first
-    if (card.value == 15) {
-        return "JO";
+    if (card.value == JOKER_VALUE) {
+        return "JOKER";
     }
     
-    char* ret = malloc(2 * sizeof(char));
+    char* ret = malloc(3 * sizeof(char));
      
     // get card value
     if (card.value <= 9) {
         ret[0] = card.value + 48;
         
-    } else if (card.value == 10) {
-        ret[0] = 48;
-        
     } else {
         switch (card.value) {
-            case 11:
+            case 10:
+                ret[0] = '1';
+                ret[1] = '0';
+                ret[2] = return_trump_char(card.suite);
+                return ret;
+                
+            case JACK_VALUE:
                 ret[0] = 'J';
                 break;
-            case 12:
+                
+            case QUEEN_VALUE:
                 ret[0] = 'Q';
                 break;
-            case 13:
+                
+            case KING_VALUE:
                 ret[0] = 'K';
                 break;
-            case 14:
+                
+            case ACE_VALUE:
                 ret[0] = 'A';
                 break;
 
@@ -91,18 +105,33 @@ Card return_card_from_string(char* card) {
     ret.value = 0;
     ret.suite = 0;
     
-    // ensure valid length
+    // ensure valid length and get rid of special cases
     if (strlen(card) != 3) {
+        
+        // case for JOKER
+        if (strcmp(card, "JOKER\n") == 0) {
+            ret.value = JOKER_VALUE;
+            return ret;
+        
+        }
+
+        // case for 10's
+        if (strlen(card) == 4 && card[0] == '1' && card[1] == '0') {
+            // check valid suite
+            if (return_trump(card[2]) == 4 || return_trump(card[2]) == -1) {
+                return ret;
+                
+            }
+            
+            ret.value = 10;
+            ret.suite = return_trump(card[2]);
+            
+        }
+        
         return ret;
         
     }
     
-    // case for joker first
-    if (strcmp(card, "JO\n") == 0) {
-        ret.value = 15;
-        return ret;
-        
-    }
     
     // check valid suite
     if (return_trump(card[1]) == 4 || return_trump(card[1]) == -1) {
@@ -110,7 +139,7 @@ Card return_card_from_string(char* card) {
     }
     
     // check valid value
-    if (card[0] < '9' && card[0] > '3') {
+    if (card[0] <= '9' && card[0] > '3') {
         
         // case for black 4's not existing
         if (card[0] == '4' && (return_trump(card[1]) == 0 ||
@@ -120,25 +149,25 @@ Card return_card_from_string(char* card) {
         
         ret.value = card[0] - 48;
         
-    } else if (card[0] == '0' || card[0] == 'J' || card[0] == 'Q' ||
+    } else if (card[0] == 'J' || card[0] == 'Q' ||
             card[0] == 'K' || card[0] == 'A') {
                 
         // special cases beside the joker
         switch (card[0]) {
-            case '0':
-                ret.value = 10;
-                break;
             case 'J':
-                ret.value = 11;
+                ret.value = JACK_VALUE;
                 break;
+                
             case 'Q':
-                ret.value = 12;
+                ret.value = QUEEN_VALUE;
                 break;
+                
             case 'K':
-                ret.value = 13;
+                ret.value = KING_VALUE;
                 break;
+                
             case 'A':
-                ret.value = 14;
+                ret.value = ACE_VALUE;
             
         }        
                 
@@ -237,24 +266,34 @@ bool remove_card_from_deck(Card card, Card** deck, int cards) {
 // returns true if it is a valid bet, false otherwise
 bool valid_bet(int* highestBet, int* suite, char* msg) {
     
-    // ensure length of message is correct
-    if (strlen(msg) != 3) {
-        return false;
-    }
-    
+    // set the new bet
     int newBet = 0;
     Trump newSuite = 0;
-                    
-    // read value, with special case '0' = 10
-    newBet = (msg[0] == '0') ? 10 : msg[0] - 48;
+    
+    // read values for case when not 10
+    newBet = msg[0] - 48;
+    newSuite = return_trump(msg[1]);
+    
+    // ensure length of message is correct
+    if (strlen(msg) != 3) {
+        
+        // case for 10 of anything
+        if (strlen(msg) == 4 && msg[0] == '1' && msg[1] == '0') {
+            newBet = 10;
+            newSuite = return_trump(msg[2]);
+            
+        } else {
+            return false;
+            
+        }
+        
+    }
                         
     // make sure value is valid
     if (newBet < 6 || newBet > 10) {
         return false;
     }
-    
-    newSuite = return_trump(msg[1]);
-    
+        
     // check for default case from return_trump
     if (newSuite == -1) {
         return false;
@@ -277,7 +316,8 @@ bool valid_bet(int* highestBet, int* suite, char* msg) {
     
 }
 
-// Compares 2 given cards with the current trump.
+// Compares 2 given cards with the current trump, where the second card is
+// the one that is currently winning the bet
 // return -1 if card a < card b 
 // return 1 if card a > card b
 // return 0 if card a == card b
@@ -285,12 +325,15 @@ int compare_cards(Card a, Card b, Trump trump) {
     // no trump case is handled here because the given trump will be the 
     // suite of the first card played.
     
-    // first, get rid of case for equal (and joker)
-    if ((a.value == b.value && a.suite == b.suite) || (a.value == 15 && 
-            b.value == 15)) {
+    // first, get rid of case for equal (and joker equal)
+    if ((a.value == b.value && a.suite == b.suite) || (a.value == JOKER_VALUE && 
+            b.value == JOKER_VALUE)) {
         return 0;
         
     }
+    
+    // deal with bowers now
+    
     
     // first, cases where one card is the trump and the other isnt.
     // the other case is when either both or none are trump, and the highest 
@@ -301,7 +344,8 @@ int compare_cards(Card a, Card b, Trump trump) {
     } else if (a.suite != trump && b.suite == trump) {
         return -1; 
         
-    } else if (a.value > b.value) {
+    } else if (a.value > b.value && a.suite == b.suite) {
+        // this assumes b is the card that is currently winning the bet
         return 1;
         
     } else {
