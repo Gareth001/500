@@ -62,6 +62,7 @@ int check_valid_username(char* user, GameInfo* gameInfo);
 int read_from_all(char* message, GameInfo* gameInfo);
 int send_to_all_except(char* message, GameInfo* gameInfo, int except);
 bool send_deck_to_all(int cards, GameInfo* gameInfo);
+Card* deal_cards(GameInfo* gameInfo);
 
 int main(int argc, char** argv) {
 
@@ -111,7 +112,7 @@ int main(int argc, char** argv) {
 void game_loop(GameInfo* gameInfo) {
     fprintf(stdout, "Game starting\n");
     
-    // send all players the player details.
+    // send all players the player details. 
     for (int i = 0; i < NUM_PLAYERS; i++) {
         for (int j = 0; j < NUM_PLAYERS; j++) {
             char* message = malloc(BUFFER_LENGTH * sizeof(char));
@@ -141,70 +142,12 @@ void game_loop(GameInfo* gameInfo) {
         
     }
     
-    fprintf(stdout, "Shuffling\n");
+    fprintf(stdout, "Shuffling and Dealing\n");
     srand(time(NULL)); // random seed
-    Card* deck = create_deck();
-    Card* kitty = malloc(3 * sizeof(Card));
-    
-    fprintf(stdout, "Dealing\n");
-    
-    // malloc all players decks
-    for (int i = 0; i < NUM_PLAYERS; i++) {
-        gameInfo->player[i].deck = malloc(13 * sizeof(Card)); // 13 for kitty
-        gameInfo->player[i].hasPassed = false; // set this property too
-        gameInfo->player[i].wins = 0;
+ 
+    // get kitty and deal cards. this includes debugging messages
+    Card* kitty = deal_cards(gameInfo);
         
-    }
-    
-    int j = 0; // kitty counter
-        
-    // send cards to users decks
-    for(int i = 0; i < 43; i++) {
-        // give to kitty
-        if (i == 12 || i == 28 || i == 42) {
-            kitty[j++] = deck[i];
-            continue;
-        }
-
-        // give the card to the players deck
-        if (i < 12) {
-            // record the card in the players deck
-            gameInfo->player[i % NUM_PLAYERS].deck[i / NUM_PLAYERS] = deck[i];            
-            
-        } else if (i < 28) {
-            // record the card in the players deck
-            gameInfo->player[(i - 1) % NUM_PLAYERS].deck[(i - 1)
-                    / NUM_PLAYERS] = deck[i];
-            
-        } else {
-            // record the card in the players deck
-            gameInfo->player[(i - 2) % NUM_PLAYERS].deck[(i - 2)
-                    / NUM_PLAYERS] = deck[i];
-            
-        }    
-    
-    }
-    
-    // sort each deck by suite here!
-    
-    
-    // send each player their deck
-    send_deck_to_all(10, gameInfo);
-
-    // debugging, print deck
-    fprintf(stdout, "Deck: %s\n", return_hand(deck, 43));
-    
-    // print each players hand
-    for (int i = 0; i < NUM_PLAYERS; i++) {
-        fprintf(stdout, "Player %d: %s\n", i,
-                return_hand(gameInfo->player[i].deck, 10)); 
-        
-        
-    }
-    
-    // print kitty 
-    fprintf(stdout, "kitty: %s\n", return_hand(kitty, 3));
-    
     fprintf(stdout, "Betting round starting\n");
 
     // ignore misere case for now
@@ -442,6 +385,7 @@ void game_loop(GameInfo* gameInfo) {
                         p, return_card(card), win, return_card(winner));
             }
             send_to_all(message, gameInfo);
+            fprintf(stdout, "%s", message);
             
             // increase plays and player number
             //plays++;
@@ -467,6 +411,7 @@ void game_loop(GameInfo* gameInfo) {
         sprintf(message, "Betting team has won %d tricks\n", count);
         
         send_to_all(message, gameInfo);
+        fprintf(stdout, "%s", message);
         
     }
     
@@ -474,14 +419,17 @@ void game_loop(GameInfo* gameInfo) {
     // number of tricks the betting team has won
     int count = gameInfo->player[betWinner].wins + 
             gameInfo->player[(betWinner + 2) % NUM_PLAYERS].wins;
+    char* result = malloc(BUFFER_LENGTH * sizeof(char));
     if (highestBet > count) {
-        send_to_all("Betting team lost!\n", gameInfo);
+        result = "Betting team lost!\n";
         
     } else {
-        send_to_all("Betting team won!\n", gameInfo);
+        result = "Betting team won!\n";
         
     }
     
+    send_to_all(result, gameInfo);
+    fprintf(stdout, "%s", result);
     
     // game is over. exit
     exit(0);
@@ -573,6 +521,73 @@ void process_connections(int fdServer, GameInfo* gameInfo) {
     
     }
     
+}
+
+// deals cards to the players decks. returns the kitty
+Card* deal_cards(GameInfo* gameInfo) {
+
+    // create deck
+    Card* deck = create_deck();
+    Card* kitty = malloc(3 * sizeof(Card));
+
+    // malloc all players decks
+    for (int i = 0; i < NUM_PLAYERS; i++) {
+        gameInfo->player[i].deck = malloc(13 * sizeof(Card)); // 13 for kitty
+        gameInfo->player[i].hasPassed = false; // set this property too
+        gameInfo->player[i].wins = 0; // bonus properties
+        
+    }
+    
+    int j = 0; // kitty counter
+        
+    // send cards to users decks
+    for(int i = 0; i < 43; i++) {
+        // give to kitty
+        if (i == 12 || i == 28 || i == 42) {
+            kitty[j++] = deck[i];
+            continue;
+        }
+
+        // give the card to the players deck
+        if (i < 12) {
+            // record the card in the players deck
+            gameInfo->player[i % NUM_PLAYERS].deck[i / NUM_PLAYERS] = deck[i];            
+            
+        } else if (i < 28) {
+            // record the card in the players deck
+            gameInfo->player[(i - 1) % NUM_PLAYERS].deck[(i - 1)
+                    / NUM_PLAYERS] = deck[i];
+            
+        } else {
+            // record the card in the players deck
+            gameInfo->player[(i - 2) % NUM_PLAYERS].deck[(i - 2)
+                    / NUM_PLAYERS] = deck[i];
+            
+        }    
+    
+    }
+    
+    // sort each deck by suite here!
+    
+    // send each player their deck
+    send_deck_to_all(10, gameInfo);
+
+    // debugging, print deck
+    fprintf(stdout, "Deck: %s\n", return_hand(deck, 43));
+    
+    // print each players hand
+    for (int i = 0; i < NUM_PLAYERS; i++) {
+        fprintf(stdout, "Player %d: %s\n", i,
+                return_hand(gameInfo->player[i].deck, 10)); 
+        
+        
+    }
+    
+    // print kitty 
+    fprintf(stdout, "kitty: %s\n", return_hand(kitty, 3));
+    
+    return kitty;
+
 }
 
 // returns 0 if the username has not been taken before, 1 otherwise

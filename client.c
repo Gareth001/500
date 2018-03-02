@@ -25,6 +25,7 @@
 struct in_addr* name_to_IP_addr(char* hostname);
 int connect_to(struct in_addr* ipAddress, int port);
 void game_loop(int fd);
+void send_input(int fd);
 
 //Test comment, James is in da house. Memes 2.00 This will work surely
 // main
@@ -123,7 +124,7 @@ int main(int argc, char** argv) {
 }
 
 // game loop.
-void game_loop(int fd) { 
+void game_loop(int fd) {
 
     // here we first receive all the players names in the game from the server.
     fprintf(stdout, "Players Connected:\n");
@@ -148,12 +149,9 @@ void game_loop(int fd) {
         char* result = read_from_fd(fd, BUFFER_LENGTH);
 
         if (strcmp(result, "bet") == 0) {
-
             fprintf(stdout, "Your bet!\n");
             // send a bet from the player input
-            char* buff = malloc(BUFFER_LENGTH * sizeof(char));
-            fgets(buff, BUFFER_LENGTH, stdin);
-            write(fd, buff, strlen(buff));
+            send_input(fd);
             
         } else if (strcmp(result, "betover") == 0) {
             // betting round over
@@ -209,10 +207,7 @@ void game_loop(int fd) {
                 }
                 
                 // send a card to discard
-                char* buff = malloc(BUFFER_LENGTH * sizeof(char));
-                fgets(buff, BUFFER_LENGTH, stdin);
-                write(fd, buff, strlen(buff));
-                                
+                send_input(fd);                            
             }
              
         } else if (strcmp(result, "kittyend") != 0) {
@@ -229,7 +224,7 @@ void game_loop(int fd) {
     // kitty is over now
     fprintf(stdout, "Kitty finished\nGame Begins\n");
 
-    // game loop
+    // actual game loop
     while (1) {
         
         // get hand from server
@@ -239,16 +234,13 @@ void game_loop(int fd) {
         fprintf(stdout, "%s\n", read_from_fd(fd, BUFFER_LENGTH));
         
         while (1) {
-            
             char* result = read_from_fd(fd, BUFFER_LENGTH);
             
             if (strcmp("send", result) == 0) {
                 // send card to server
                 fprintf(stdout, "Choose card to play\n");
-                char* buff = malloc(BUFFER_LENGTH * sizeof(char));
-                fgets(buff, BUFFER_LENGTH, stdin);
-                write(fd, buff, strlen(buff));                
-                
+                send_input(fd);
+
             } else if (strcmp("roundover", result) == 0) {
                 // round over
                 break;
@@ -280,6 +272,14 @@ void game_loop(int fd) {
 
 }
 
+// sends input from stdin to the fd
+void send_input(int fd) {
+    char* buff = malloc(BUFFER_LENGTH * sizeof(char));
+    fgets(buff, BUFFER_LENGTH, stdin);
+    write(fd, buff, strlen(buff));        
+    
+}
+                
 // converts name to IP address
 struct in_addr* name_to_IP_addr(char* hostname) {
     int error;
@@ -310,11 +310,11 @@ int connect_to(struct in_addr* ipAddress, int port) {
     // the server
     socketAddr.sin_family = AF_INET;    // IPv4
     socketAddr.sin_port = htons(port);    // convert port num to network byte
-    socketAddr.sin_addr.s_addr = inet_addr("0"); // IP address
+    socketAddr.sin_addr.s_addr = ipAddress->s_addr; // IP address  
                                 
     // Attempt to connect to the server
     if(connect(fd, (struct sockaddr*)&socketAddr, sizeof(socketAddr)) < 0) {
-        fprintf(stderr, "Connect failed\n");
+        perror("Connect failed\n");
         exit(4);
     }
 
