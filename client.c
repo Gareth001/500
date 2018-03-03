@@ -58,31 +58,26 @@ int main(int argc, char** argv) {
         write(fd, message, strlen(message));
     
     }
-    
-    char* readBuffer = malloc(6 * sizeof(char)); // we will reuse this
-    
-    read(fd, readBuffer, BUFFER_LENGTH); // confirmation
-
+        
     // read yes from server, otherwise exit
-    if (strcmp(readBuffer, "yes\n") != 0) {
+    if (strcmp(read_from_fd(fd, BUFFER_LENGTH), "yes") != 0) {
         // exit
         fprintf(stderr, "Auth failed\n");
-        
-        // Close socket
         close(fd);
         return 2;
 
     } 
     
-    char* message = malloc(BUFFER_LENGTH * sizeof(char));
-
     // send player name
-    sprintf(message, "%s\n", argv[4]);
-    write(fd, message, strlen(message));
-    
-    read(fd, readBuffer, BUFFER_LENGTH); // confirmation
+    {
+        char* message = malloc(BUFFER_LENGTH * sizeof(char));
+        sprintf(message, "%s\n", argv[4]);
+        write(fd, message, strlen(message));
         
-    if (strcmp(readBuffer, "yes\n") != 0) {
+    }
+    
+    // check if server sent yes, otherwise invalid username
+    if (strcmp(read_from_fd(fd, BUFFER_LENGTH), "yes") != 0) {
         // exit
         fprintf(stderr, "Invalid username\n");
         
@@ -95,14 +90,13 @@ int main(int argc, char** argv) {
     fprintf(stdout, "Connected successfully!\n");
     
     // receive start from server
-    read(fd, readBuffer, BUFFER_LENGTH);
-        
+    read_from_fd(fd, BUFFER_LENGTH);
+    
     // tell them yes, we are still here
     write(fd, "yes\n", 4);
         
     // receive start from server which lets us know everyone is here
     // server will either send start\n or something else
-    //read(fd, readBuffer, 6);
         
     if (strcmp(read_from_fd(fd, BUFFER_LENGTH), "start") != 0) {
         // exit
@@ -113,9 +107,6 @@ int main(int argc, char** argv) {
         return 5;
 
     }
-    
-    free(readBuffer);
-    free(message);
     
     // take us to the game!
     fprintf(stdout, "Game started!\n");
@@ -157,7 +148,7 @@ void game_loop(int fd) {
             // betting round over
             break;
             
-        } else if (strcmp(result, "betexit") == 0) {
+        } else if (strcmp(result, "badinput") == 0) {
             // bet ended unexpectedly, exit game
             fprintf(stderr, "Unexpected exit\n");
             close(fd);
@@ -245,7 +236,7 @@ void game_loop(int fd) {
                 // round over
                 break;
              
-            } else if (strcmp("end", result) == 0){
+            } else if (strcmp("badinput", result) == 0){
                 // game ended unexpectedly
                 fprintf(stderr, "Unexpected exit\n");
                 close(fd);
@@ -277,6 +268,7 @@ void send_input(int fd) {
     char* buff = malloc(BUFFER_LENGTH * sizeof(char));
     fgets(buff, BUFFER_LENGTH, stdin);
     write(fd, buff, strlen(buff));        
+    free(buff);
     
 }
                 
@@ -284,12 +276,14 @@ void send_input(int fd) {
 struct in_addr* name_to_IP_addr(char* hostname) {
     int error;
     struct addrinfo* addressInfo;
-
     error = getaddrinfo(hostname, NULL, NULL, &addressInfo);
-    if(error) {
-    return NULL;
+    
+    if (error) {
+        return NULL;
+    
     }
-    // Extract the IP address and return it
+    
+    // extract the IP address and return it
     return &(((struct sockaddr_in*)(addressInfo->ai_addr))->sin_addr);
     
 }
@@ -299,25 +293,25 @@ int connect_to(struct in_addr* ipAddress, int port) {
     struct sockaddr_in socketAddr;
     int fd;
     
-    // Create socket - TCP socket IPv4
+    // create socket - TCP socket IPv4
     fd = socket(AF_INET, SOCK_STREAM, 0);
-    if(fd < 0) {
+    if (fd < 0) {
         fprintf(stderr, "Connect failed\n");
         exit(4);
     }
 
-    // Populate server address structure with IP address and port number of
-    // the server
+    // populate server address structure with IP address and port number
     socketAddr.sin_family = AF_INET;    // IPv4
     socketAddr.sin_port = htons(port);    // convert port num to network byte
     socketAddr.sin_addr.s_addr = ipAddress->s_addr; // IP address  
                                 
-    // Attempt to connect to the server
-    if(connect(fd, (struct sockaddr*)&socketAddr, sizeof(socketAddr)) < 0) {
+    // attempt to connect to the server
+    if (connect(fd, (struct sockaddr*)&socketAddr, sizeof(socketAddr)) < 0) {
         perror("Connect failed\n");
         exit(4);
+        
     }
 
-    // Now have connected socket
+    // now have connected socket
     return fd;
 }
