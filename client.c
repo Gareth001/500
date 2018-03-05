@@ -213,7 +213,41 @@ void game_loop(int fd) {
     }
     
     // kitty is over now
-    fprintf(stdout, "Kitty finished\nGame Begins\n");
+    fprintf(stdout, "Kitty finished\n");
+
+    // we need to choose the suite for the joker if we are doing no trumps
+    // very similar to how kitty round is handled
+    fprintf(stdout, "Choosing joker suite\n");
+    
+    // joker suite
+    while (1) {
+        char* result = read_from_fd(fd, BUFFER_LENGTH); // jokerwant or not 
+        
+        if (strcmp(result, "jokerwant") == 0) {
+            // print to user that we want the joker
+            fprintf(stdout, "Choose joker suite:\n");
+            send_input(fd);
+            
+        } else if (strcmp(result, "jokerdone") == 0) {
+            // exit from the loop
+            break;
+            
+        } else if (strcmp("badinput", result) == 0) {
+            // game ended unexpectedly
+            fprintf(stderr, "Unexpected exit\n");
+            close(fd);
+            exit(5);
+            
+        } else {
+            // server sent the joker suite here, we will get jokerdone next
+            fprintf(stdout, "%s\n", result);
+            
+        }
+            
+    }
+    
+    // game begins
+    fprintf(stdout, "Game Begins\n");
 
     // actual game loop
     while (1) {
@@ -236,7 +270,7 @@ void game_loop(int fd) {
                 // round over
                 break;
              
-            } else if (strcmp("badinput", result) == 0){
+            } else if (strcmp("badinput", result) == 0) {
                 // game ended unexpectedly
                 fprintf(stderr, "Unexpected exit\n");
                 close(fd);

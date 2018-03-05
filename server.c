@@ -13,7 +13,6 @@
 #include <arpa/inet.h>
 #include <ctype.h>
 #include <pthread.h>
-#include <stdbool.h>
 #include <time.h>
 
 #include "shared.h"
@@ -46,11 +45,12 @@ typedef struct GameInfo {
     // player and card array
     Player* player;
     Card* kitty;
-    
+
     // highest bet info
     int highestBet;
     Trump suite;
     int betWinner;
+    Trump jokerSuite;
     
     int players; // current player count
     int p; // current player selected
@@ -63,20 +63,24 @@ typedef struct GameInfo {
 } GameInfo;
 
 // function declaration
+// server related functions
 int open_listen(int port);
 void process_connections(GameInfo* games);
 int send_to_all(char* message, GameInfo* gameInfo);
-int check_valid_username(char* user, GameInfo* gameInfo);
 int read_from_all(char* message, GameInfo* gameInfo);
 int send_to_all_except(char* message, GameInfo* gameInfo, int except);
 bool send_deck_to_all(int cards, GameInfo* gameInfo);
+// input related functions
+int check_valid_username(char* user, GameInfo* gameInfo);
 Card* deal_cards(GameInfo* gameInfo);
 int get_winning_tricks(GameInfo* gameInfo);
 char* get_card(GameInfo* gameInfo);
+// rounds
 void kitty_round(GameInfo* gameInfo);
 void bet_round(GameInfo* gameInfo);
 void send_player_details(GameInfo* gameInfo);
 void play_round(GameInfo* gameInfo);
+void joker_round(GameInfo* gameInfo);
 
 int main(int argc, char** argv) {
 
@@ -126,7 +130,7 @@ void game_loop(GameInfo* gameInfo) {
     fprintf(stdout, "Shuffling and Dealing\n");
     srand(time(NULL)); // random seed
     gameInfo->kitty = deal_cards(gameInfo); // kitty and dealing, debug info too
-
+    
     // betting round
     fprintf(stdout, "Betting round starting\n");
     bet_round(gameInfo);
@@ -136,6 +140,9 @@ void game_loop(GameInfo* gameInfo) {
     fprintf(stdout, "Dealing kitty\n");
     kitty_round(gameInfo);
     fprintf(stdout, "Kitty finished\n");
+    
+    // joker suite round. note this only occurs if there are no trumps.
+    joker_round(gameInfo);
     
     // play round
     fprintf(stdout, "Game Begins\n");
@@ -238,6 +245,37 @@ void process_connections(GameInfo* gameInfo) {
     send_to_all("start\n", gameInfo);
     game_loop(gameInfo);
 
+}
+
+// sends all players their details, including who's on their team and 
+// all username and player numbers.
+void send_player_details(GameInfo* gameInfo) {
+    // send all players the player details. 
+    for (int i = 0; i < NUM_PLAYERS; i++) {
+        for (int j = 0; j < NUM_PLAYERS; j++) {
+            char* message = malloc(BUFFER_LENGTH * sizeof(char));
+
+            // string that tells the user if the player is them or a teammate
+            char* str = "";
+            if (i == j) {
+                str = " (You)";
+                
+            } else if ((i + 2) % NUM_PLAYERS == j) {
+                str = " (Teammate)";
+                
+            } 
+                   
+            // send this users info to the player
+            sprintf(message, "Player %d, '%s'%s\n", j,
+                    gameInfo->player[j].name, str);
+            write(gameInfo->player[i].fd, message, strlen(message));
+            
+            // await confirmation from user
+            read_from_fd(gameInfo->player[i].fd, BUFFER_LENGTH);
+            
+        }
+        
+    }
 }
 
 // handles the kitty round with all players
@@ -384,6 +422,68 @@ void bet_round(GameInfo* gameInfo) {
     
 }
 
+// handles choosing the joker suite, if it is no trumps
+void joker_round(GameInfo* gameInfo) {
+    
+    gameInfo->jokerSuite = -1; // default joker suite
+
+    // choose joker suite round
+    if (gameInfo->suite == 4) {
+        fprintf(stdout, "Choosing joker suite\n");
+        
+        // find which player has the joker. loop through each players deck 
+        int playerWithJoker = 0;
+        for (int i = 0; i < 4; i++) {
+            if (deck_has_joker(gameInfo->player[i].deck) == true) {
+                playerWithJoker = i;
+                break;
+                
+            }
+                
+        }
+        
+        // get suite from user
+        while (1) {
+            // ask user for suite
+            write(gameInfo->player[playerWithJoker].fd, "jokerwant\n", 10);
+            
+            // get suite
+            char* msg = get_card(gameInfo);
+            
+            // check length valid
+            if (strlen(msg) != 2) {
+                continue;
+                
+            }
+            
+            // check suite valid
+            if (return_trump(msg[0]) != -1 && return_trump(msg[0]) != 4) {
+                // set the jokers suite in the gameInfo, and we're done
+                gameInfo->jokerSuite = return_trump(msg[0]);
+                break;
+                
+            }
+            
+        }        
+        
+    }
+    
+    // send joker suite if it was chosen
+    if (gameInfo->jokerSuite != -1) {
+        // prepare string
+        char* send = malloc(BUFFER_LENGTH * sizeof(char));
+        sprintf(send, "Joker suite chosen. It is a %c\n",
+                return_trump_char(gameInfo->jokerSuite));
+                
+        send_to_all(send, gameInfo);
+        fprintf(stdout, "%s", send);
+        
+    }
+    
+    send_to_all("jokerdone\n", gameInfo);
+
+}
+
 // handles the play rounds. 
 void play_round(GameInfo* gameInfo) {
     int rounds = 0;
@@ -429,6 +529,12 @@ void play_round(GameInfo* gameInfo) {
                     break;
                     
                 }
+                
+            }
+            
+            // change jokers suite if we are in no trumps!
+            if (gameInfo->suite == 4 && card.value == JOKER_VALUE) {
+                card.suite = gameInfo->jokerSuite;
                 
             }
             
@@ -483,37 +589,6 @@ void play_round(GameInfo* gameInfo) {
         
     }
     
-}
-
-// sends all players their details, including who's on their team and 
-// all username and player numbers.
-void send_player_details(GameInfo* gameInfo) {
-    // send all players the player details. 
-    for (int i = 0; i < NUM_PLAYERS; i++) {
-        for (int j = 0; j < NUM_PLAYERS; j++) {
-            char* message = malloc(BUFFER_LENGTH * sizeof(char));
-
-            // string that tells the user if the player is them or a teammate
-            char* str = "";
-            if (i == j) {
-                str = " (You)";
-                
-            } else if ((i + 2) % NUM_PLAYERS == j) {
-                str = " (Teammate)";
-                
-            } 
-                   
-            // send this users info to the player
-            sprintf(message, "Player %d, '%s'%s\n", j,
-                    gameInfo->player[j].name, str);
-            write(gameInfo->player[i].fd, message, strlen(message));
-            
-            // await confirmation from user
-            read_from_fd(gameInfo->player[i].fd, BUFFER_LENGTH);
-            
-        }
-        
-    }
 }
 
 // deals cards to the players decks. returns the kitty

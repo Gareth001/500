@@ -3,6 +3,8 @@
 
 #include <stdbool.h>
 
+#define JOKER_VALUE 17
+
 // Cards. We store a value (4, 7, king, ace etc) and a suite (spades etc).
 // In the case of the joker, the value is set to 15 and the suite is set as 
 // the trump in the case of a normal game and the chosen suite if no trumps is
@@ -47,7 +49,7 @@ char* return_hand(Card* cards, int num);
 // return 0 if card a == card b
 int compare_cards(Card a, Card b, Trump trump);
 
-// returns an array of 43 cards, not shuffled.
+// returns an array of 43 cards, not shuffled. 
 Card* create_deck();
 
 // checks if a bet is valid, and sets the new highest bet if it is, 
@@ -61,5 +63,8 @@ Card return_card_from_string(char* card);
 // removes the given card from the given deck, with given number of cards.
 // returns true if successful, false otherwise
 bool remove_card_from_deck(Card card, Card** deck, int cards);
+
+// returns true if deck has the joker, false otherwise.
+bool deck_has_joker(Card* deck);
 
 #endif /* CARDS_H */ 

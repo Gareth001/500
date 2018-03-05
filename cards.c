@@ -1,11 +1,9 @@
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "cards.h"
 
-#define JOKER_VALUE 17
 #define JACK_VALUE 11
 #define QUEEN_VALUE 12
 #define KING_VALUE 13
@@ -13,7 +11,7 @@
 #define LEFT_BOWER_VALUE 15 // jack of trump colour
 #define RIGHT_BOWER_VALUE 16 // jack of trump suite
 
-// returns an array of 43 cards, not shuffled.
+// returns an array of 43 cards, not shuffled. 
 Card* create_deck() {
     Card* deck = malloc(43 * sizeof(Card));
     
@@ -252,6 +250,20 @@ bool remove_card_from_deck(Card card, Card** deck, int cards) {
             }
             
             // removal success
+            return true;
+            
+        }
+        
+    }
+    
+    return false;
+    
+}
+
+// returns true if deck has the joker, false otherwise.
+bool deck_has_joker(Card* deck) {
+    for (int i = 0; i < 13; i++) {
+        if (deck[i].value == JOKER_VALUE) {
             return true;
             
         }
