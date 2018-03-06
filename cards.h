@@ -2,10 +2,28 @@
 #define CARDS_H 
 
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
+// picture card values
+#define JACK_VALUE 11
+#define QUEEN_VALUE 12
+#define KING_VALUE 13
+#define ACE_VALUE 14
+#define LEFT_BOWER_VALUE 15 // jack of trump colour
+#define RIGHT_BOWER_VALUE 16 // jack of trump suite
 #define JOKER_VALUE 17
 
-// Cards. We store a value (4, 7, king, ace etc) and a suite (spades etc).
+// suite definitions
+#define SPADES 0
+#define CLUBS 1
+#define DIAMONDS 2
+#define HEARTS 3
+#define NOTRUMPS 4
+#define DEFAULT_SUITE -1
+
+// cards. We store a value (4, 7, king, ace etc) and a suite (spades etc).
 // In the case of the joker, the value is set to 15 and the suite is set as 
 // the trump in the case of a normal game and the chosen suite if no trumps is
 // chosen.
@@ -20,13 +38,7 @@ typedef struct Card {
     
 } Card;
 
-// Trumps. an integer between 0 and 4
-// Spades 0
-// Clubs 1
-// Diamonds 2
-// Hearts 3
-// No Trumps 4
-
+// trumps. see suite defeinitions above
 typedef int Trump;
 
 
@@ -43,7 +55,7 @@ Trump return_trump(char trump);
 // by a single space
 char* return_hand(Card* cards, int num);
 
-// Compares 2 given cards with the current trump.
+// compares 2 given cards with the current trump.
 // return -1 if card a < card b 
 // return 1 if card a > card b
 // return 0 if card a == card b
@@ -66,5 +78,8 @@ bool remove_card_from_deck(Card card, Card** deck, int cards);
 
 // returns true if deck has the joker, false otherwise.
 bool deck_has_joker(Card* deck);
+
+// changes the value and suite of the card if it is a left or right bower.
+void handle_bower(Card* card, Trump trump);
 
 #endif /* CARDS_H */ 

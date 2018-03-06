@@ -1,15 +1,5 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
+// contains all our card value defines 
 #include "cards.h"
-
-#define JACK_VALUE 11
-#define QUEEN_VALUE 12
-#define KING_VALUE 13
-#define ACE_VALUE 14
-#define LEFT_BOWER_VALUE 15 // jack of trump colour
-#define RIGHT_BOWER_VALUE 16 // jack of trump suite
 
 // returns an array of 43 cards, not shuffled. 
 Card* create_deck() {
@@ -22,22 +12,22 @@ Card* create_deck() {
         // deal with case for 4's, we only want red ones.
         if (i != 4) {
             deck[j].value = i;
-            deck[j++].suite = 0; // spades
+            deck[j++].suite = SPADES;
             deck[j].value = i;
-            deck[j++].suite = 1; // clubs
+            deck[j++].suite = CLUBS;
             
         }
         
         deck[j].value = i;
-        deck[j++].suite = 2; // diamonds
+        deck[j++].suite = DIAMONDS; 
         deck[j].value = i;
-        deck[j++].suite = 3; // hearts
+        deck[j++].suite = HEARTS;
         
     }
     
     // add joker. default to 4
     deck[j].value = JOKER_VALUE;
-    deck[j].suite = 4;
+    deck[j].suite = NOTRUMPS;
     
     // shuffle here
     
@@ -203,13 +193,13 @@ char* return_hand(Card* cards, int num) {
 // returns a character representing the trump.
 char return_trump_char(Trump trump) {
     switch (trump) {
-        case 0: // Spades
+        case SPADES:
             return 'S'; 
-        case 1: // Clubs
+        case CLUBS:
             return 'C';
-        case 2: // Diamonds
+        case DIAMONDS:
             return 'D';
-        case 3: // Hearts
+        case HEARTS:
             return 'H';
         default: // No trumps
             return 'N';
@@ -221,18 +211,18 @@ char return_trump_char(Trump trump) {
 // returns a number representing the trump's character.
 Trump return_trump(char trump) {
     switch (trump) {
-        case 'S': // Spades
-            return 0; 
-        case 'C': // Clubs
-            return 1;
-        case 'D': // Diamonds
-            return 2;
-        case 'H': // Hearts
-            return 3;
-        case 'N': // No trumps
-            return 4;
+        case 'S':
+            return SPADES; 
+        case 'C':
+            return CLUBS;
+        case 'D':
+            return DIAMONDS;
+        case 'H':
+            return HEARTS;
+        case 'N':
+            return NOTRUMPS;
         default: // Bad input
-            return -1;
+            return DEFAULT_SUITE;
 
     }
     
@@ -250,6 +240,9 @@ bool remove_card_from_deck(Card card, Card** deck, int cards) {
             }
             
             // removal success
+            
+            // sort the hand by suite here!
+            
             return true;
             
         }
@@ -344,8 +337,12 @@ int compare_cards(Card a, Card b, Trump trump) {
         
     }
     
-    // deal with bowers now
-    
+    // deal with bowers now. only in no trumps
+    if (trump != NOTRUMPS) {
+        handle_bower(&a, trump);
+        handle_bower(&b, trump);
+        
+    }
     
     // first, cases where one card is the trump and the other isnt.
     // the other case is when either both or none are trump, and the highest 
@@ -364,5 +361,58 @@ int compare_cards(Card a, Card b, Trump trump) {
         return -1; 
         
     }
+    
+}
+
+// changes the value and suite of the card if it is a left or right bower.
+void handle_bower(Card* card, Trump trump) {
+    
+    // must be a jack
+    if ((*card).value == JACK_VALUE) {
+        
+        // check for right bower
+        if ((*card).suite == trump) {
+            (*card).value = RIGHT_BOWER_VALUE;
+            return;
+        }
+                
+        // check for left bower
+        switch ((*card).suite) {
+            case SPADES:
+                if (trump == CLUBS) {
+                    (*card).value = LEFT_BOWER_VALUE;
+                    (*card).suite = trump;
+                    
+                }
+                break;
+                
+            case CLUBS:
+                if (trump == SPADES) {
+                    (*card).value = LEFT_BOWER_VALUE;
+                    (*card).suite = trump;
+                    
+                }
+                break;
+                
+            case DIAMONDS:
+                if (trump == HEARTS) {
+                    (*card).value = LEFT_BOWER_VALUE;
+                    (*card).suite = trump;
+                    
+                }
+                break;
+                
+            case HEARTS:
+                if (trump == DIAMONDS) {
+                    (*card).value = LEFT_BOWER_VALUE;
+                    (*card).suite = trump;
+                    
+                }
+                                
+        }
+        
+    }
+    
+    return;
     
 }

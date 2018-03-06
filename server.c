@@ -421,15 +421,15 @@ void bet_round(GameInfo* gameInfo) {
 // handles choosing the joker suite, if it is no trumps
 void joker_round(GameInfo* gameInfo) {
     
-    gameInfo->jokerSuite = -1; // default joker suite
+    gameInfo->jokerSuite = DEFAULT_SUITE; // default joker suite
 
     // choose joker suite round
-    if (gameInfo->suite == 4) {
+    if (gameInfo->suite == NOTRUMPS) {
         fprintf(stdout, "Choosing joker suite\n");
         
         // find which player has the joker. loop through each players deck 
         int playerWithJoker = 0;
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < NUM_PLAYERS; i++) {
             if (deck_has_joker(gameInfo->player[i].deck) == true) {
                 playerWithJoker = i;
                 break;
@@ -453,7 +453,8 @@ void joker_round(GameInfo* gameInfo) {
             }
             
             // check suite valid
-            if (return_trump(msg[0]) != -1 && return_trump(msg[0]) != 4) {
+            if (return_trump(msg[0]) != DEFAULT_SUITE && 
+                    return_trump(msg[0]) != NOTRUMPS) {
                 // set the jokers suite in the gameInfo, and we're done
                 gameInfo->jokerSuite = return_trump(msg[0]);
                 break;
@@ -465,7 +466,7 @@ void joker_round(GameInfo* gameInfo) {
     }
     
     // send joker suite if it was chosen
-    if (gameInfo->jokerSuite != -1) {
+    if (gameInfo->jokerSuite != DEFAULT_SUITE) {
         // prepare string
         char* send = malloc(BUFFER_LENGTH * sizeof(char));
         sprintf(send, "Joker suite chosen. It is a %c\n",
@@ -529,7 +530,7 @@ void play_round(GameInfo* gameInfo) {
             }
             
             // change jokers suite if we are in no trumps!
-            if (gameInfo->suite == 4 && card.value == JOKER_VALUE) {
+            if (gameInfo->suite == NOTRUMPS && card.value == JOKER_VALUE) {
                 card.suite = gameInfo->jokerSuite;
                 
             }
