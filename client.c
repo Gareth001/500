@@ -168,50 +168,31 @@ void game_loop(int fd) {
     fprintf(stdout, "Waiting for Kitty\n");
     
     // kitty
-    {
-        char* result = read_from_fd(fd, BUFFER_LENGTH); // kittywin or not 
+    while (1) {
+        char* result = read_from_fd(fd, BUFFER_LENGTH); // kitty info or not 
         
-        // read from server if we won the bet or not
-        if (strcmp(result, "kittywin") == 0) {
-       
-            // we won! send that we are ready for more
-            write(fd, "yes\n", 4);
+        if (strcmp(result, "send") == 0) {
+            // send input from user
+            send_input(fd);                            
             
-            // get deck (with kitty) from player
-            fprintf(stdout, "%s\n", read_from_fd(fd, BUFFER_LENGTH));
+        } else if (strcmp(result, "kittyend") == 0) {
+            // exit from the loop
+            break;
             
-            // loop until we get kittyend
-            while (1) {
-                
-                char* message = read_from_fd(fd, BUFFER_LENGTH);
-                             
-                if (strcmp(message, "kittyend") == 0) {
-                    // we are done after getting a kittyend. anything else
-                    // and we just continue 
-                    break;
-                    
-                } else {
-                    // otherwise server sent us info on how many cards we need
-                    // to still receive, print this
-                    fprintf(stdout, "%s\n", message);
-                    
-                }
-                
-                // send a card to discard
-                send_input(fd);                            
-            }
-             
-        } else if (strcmp(result, "kittyend") != 0) {
-            
+        } else if (strcmp("badinput", result) == 0) {
             // game ended unexpectedly
             fprintf(stderr, "Unexpected exit\n");
             close(fd);
             exit(5);
             
+        } else {
+            // server sent the joker suite here, we will get jokerdone next
+            fprintf(stdout, "%s\n", result);
+            
         }
-        
+            
     }
-    
+        
     // kitty is over now
     fprintf(stdout, "Kitty finished\n");
 

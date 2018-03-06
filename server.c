@@ -283,20 +283,14 @@ void kitty_round(GameInfo* gameInfo) {
     
     // send the winner of the betting round the 13 cards they have to
     // choose from, the player will send the three they don't want
-    
-    // send message to winner that they are to receive kitty data
-    write(gameInfo->player[gameInfo->p].fd, "kittywin\n", 9);
-    
-    // make sure player is ready for input. should be yes\n
-    read_from_fd(gameInfo->player[gameInfo->p].fd, BUFFER_LENGTH);
-  
+      
     // add kitty to the winners hand
     for (int i = 0; i < 3; i++) {
         gameInfo->player[gameInfo->p].deck[10 + i] = gameInfo->kitty[i];
         
     }
   
-    // prepare string to send to the winner
+    // prepare string to send to the winner and send it 
     char* msg = malloc(BUFFER_LENGTH * sizeof(char));
     sprintf(msg, "You won! Pick 3 cards to discard: %s\n",
             return_hand(gameInfo->player[gameInfo->p].deck, 13));
@@ -309,9 +303,11 @@ void kitty_round(GameInfo* gameInfo) {
         // send user a string of how many cards we still need
         char* message = malloc(BUFFER_LENGTH * sizeof(char));
         sprintf(message, "Pick %d more cards!\n", 3 - c);
-        
         write(gameInfo->player[gameInfo->p].fd, message, strlen(message)); 
-                
+       
+        // ask for some input
+        write(gameInfo->player[gameInfo->p].fd, "send\n", 5); 
+
         // get card, and check if card is valid and then
         // remove it from the players deck
         Card card = return_card_from_string(get_card(gameInfo));
