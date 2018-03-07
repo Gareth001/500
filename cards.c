@@ -339,8 +339,8 @@ int compare_cards(Card a, Card b, Trump trump) {
     
     // deal with bowers now. only in no trumps
     if (trump != NOTRUMPS) {
-        handle_bower(&a, trump);
-        handle_bower(&b, trump);
+        a = handle_bower(a, trump);
+        b = handle_bower(b, trump);
         
     }
     
@@ -364,48 +364,80 @@ int compare_cards(Card a, Card b, Trump trump) {
     
 }
 
+// returns false if the deck contains a card of suite lead and card isn't of 
+// suite lead. returns true otherwise. trump is the games trump
+bool correct_suite_player(Card card, Card* deck, Trump lead, Trump trump,
+        int rounds) {
+    // if they are playing a card from the leading suite, it's fine
+    if (handle_bower(card, trump).suite == lead) {
+        return true;
+        
+    }
+    
+    // the only other valid case is if the user has no cards of leading suite
+    for (int i = 0; i < rounds; i++) {        
+        
+        // if we have a card of the leading suite that we aren't playing 
+        // return false. also change it into the bower if necessary
+        if (handle_bower(deck[i], trump).suite == lead) {
+            return false;
+            
+        }
+        
+    }
+    
+    // otherwise it's valid
+    return true;
+    
+}
+
+
 // changes the value and suite of the card if it is a left or right bower.
-void handle_bower(Card* card, Trump trump) {
+Card handle_bower(Card card, Trump trump) {
+    
+    Card ret;
+    ret.value = card.value;
+    ret.suite = card.suite;
     
     // must be a jack
-    if ((*card).value == JACK_VALUE) {
+    if (ret.value == JACK_VALUE) {
         
         // check for right bower
-        if ((*card).suite == trump) {
-            (*card).value = RIGHT_BOWER_VALUE;
-            return;
+        if (ret.suite == trump) {
+            ret.value = RIGHT_BOWER_VALUE;
+            return ret;
         }
                 
         // check for left bower
-        switch ((*card).suite) {
+        switch (ret.suite) {
             case SPADES:
                 if (trump == CLUBS) {
-                    (*card).value = LEFT_BOWER_VALUE;
-                    (*card).suite = trump;
+                    ret.value = LEFT_BOWER_VALUE;
+                    ret.suite = trump;
                     
                 }
                 break;
                 
             case CLUBS:
                 if (trump == SPADES) {
-                    (*card).value = LEFT_BOWER_VALUE;
-                    (*card).suite = trump;
+                    ret.value = LEFT_BOWER_VALUE;
+                    ret.suite = trump;
                     
                 }
                 break;
                 
             case DIAMONDS:
                 if (trump == HEARTS) {
-                    (*card).value = LEFT_BOWER_VALUE;
-                    (*card).suite = trump;
+                    ret.value = LEFT_BOWER_VALUE;
+                    ret.suite = trump;
                     
                 }
                 break;
                 
             case HEARTS:
                 if (trump == DIAMONDS) {
-                    (*card).value = LEFT_BOWER_VALUE;
-                    (*card).suite = trump;
+                    ret.value = LEFT_BOWER_VALUE;
+                    ret.suite = trump;
                     
                 }
                                 
@@ -413,6 +445,6 @@ void handle_bower(Card* card, Trump trump) {
         
     }
     
-    return;
+    return ret;
     
 }

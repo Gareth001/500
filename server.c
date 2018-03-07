@@ -74,7 +74,7 @@ bool send_deck_to_all(int cards, GameInfo* gameInfo);
 int check_valid_username(char* user, GameInfo* gameInfo);
 Card* deal_cards(GameInfo* gameInfo);
 int get_winning_tricks(GameInfo* gameInfo);
-char* get_card(GameInfo* gameInfo);
+char* get_message_from_player(GameInfo* gameInfo);
 // rounds
 void kitty_round(GameInfo* gameInfo);
 void bet_round(GameInfo* gameInfo);
@@ -229,7 +229,7 @@ void process_connections(GameInfo* gameInfo) {
         
         // read 4 characters, just make sure that it works
         if (read(gameInfo->player[i].fd, malloc(4 * sizeof(char)),
-                4) == -1) {
+                4) <= 0) {
             
             // if we don't get a yes, then send a message that game 
             // is not starting and we exit
@@ -310,7 +310,7 @@ void kitty_round(GameInfo* gameInfo) {
 
         // get card, and check if card is valid and then
         // remove it from the players deck
-        Card card = return_card_from_string(get_card(gameInfo));
+        Card card = return_card_from_string(get_message_from_player(gameInfo));
         
         // check if the card was valid
         if (card.value == 0) {
@@ -357,7 +357,7 @@ void bet_round(GameInfo* gameInfo) {
             write(gameInfo->player[gameInfo->p].fd, "bet\n", 4);
             
             // get bet from player 0
-            char* msg = get_card(gameInfo);
+            char* msg = get_message_from_player(gameInfo);
             
             char* send = malloc(BUFFER_LENGTH * sizeof(char));
 
@@ -406,6 +406,7 @@ void bet_round(GameInfo* gameInfo) {
     if (gameInfo->highestBet == 0) {
         // case where everyone passed, we want to redeal 
         // TBA
+        exit(2345); // hahahahhaa
         
     }
     
@@ -444,7 +445,7 @@ void joker_round(GameInfo* gameInfo) {
             write(gameInfo->player[playerWithJoker].fd, "jokerwant\n", 10);
             
             // get suite
-            char* msg = get_card(gameInfo);
+            char* msg = get_message_from_player(gameInfo);
             
             // check length valid
             if (strlen(msg) != 2) {
@@ -498,6 +499,9 @@ void play_round(GameInfo* gameInfo) {
         winner.value = 0;
         winner.suite = 0;
         
+        // leading trump
+        Trump lead = DEFAULT_SUITE;
+        
         // number of successful plays so far and winning player
         int plays = 0;
         int win = gameInfo->p;
@@ -513,8 +517,28 @@ void play_round(GameInfo* gameInfo) {
                 write(gameInfo->player[gameInfo->p].fd, "send\n", 5);
                 
                 // get card and check validity and remove from deck
-                card = return_card_from_string(get_card(gameInfo));
+                card = return_card_from_string(get_message_from_player(gameInfo));
                 if (card.value == 0) {
+                    continue;
+                    
+                }
+                
+                // handle joker here so correct_suite_player works
+                // change jokers suite if we are in no trumps
+                if (card.value == JOKER_VALUE) {
+                    if (gameInfo->suite == NOTRUMPS) {
+                        card.suite = gameInfo->jokerSuite;
+                        
+                    } else {
+                        card.suite = gameInfo->suite;
+                        
+                    }
+                    
+                }
+            
+                if (correct_suite_player(card,
+                        gameInfo->player[gameInfo->p].deck, lead,
+                        gameInfo->suite, NUM_ROUNDS - rounds) == false) {
                     continue;
                     
                 } else if (remove_card_from_deck(card,
@@ -529,15 +553,10 @@ void play_round(GameInfo* gameInfo) {
                 
             }
             
-            // change jokers suite if we are in no trumps!
-            if (gameInfo->suite == NOTRUMPS && card.value == JOKER_VALUE) {
-                card.suite = gameInfo->jokerSuite;
-                
-            }
-            
             // if we are the first to play, our card is automatically winning
             if (plays == 0) {
                 winner = card;
+                lead = card.suite;
                 
             } else if (compare_cards(card, winner, gameInfo->suite) == 1) {
                 // we have a valid card. check if it's higher than winner
@@ -656,12 +675,12 @@ Card* deal_cards(GameInfo* gameInfo) {
 
 }
 
-// return a string representing a card read from the user, doubls up as getting
-// bet too. exists if player has left
-char* get_card(GameInfo* gameInfo) {
+// return a string representing a card read from the current player, doubles up 
+// as getting bet too. exists if player has left
+char* get_message_from_player(GameInfo* gameInfo) {
     char* msg = malloc(BUFFER_LENGTH * sizeof(char));
     if (read(gameInfo->player[gameInfo->p].fd, msg,
-            BUFFER_LENGTH) == -1) {
+            BUFFER_LENGTH) <= 0) {
         // player left early
         fprintf(stderr, "Unexpected exit\n");
         send_to_all_except("badinput\n", gameInfo, gameInfo->p);

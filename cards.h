@@ -79,7 +79,13 @@ bool remove_card_from_deck(Card card, Card** deck, int cards);
 // returns true if deck has the joker, false otherwise.
 bool deck_has_joker(Card* deck);
 
-// changes the value and suite of the card if it is a left or right bower.
-void handle_bower(Card* card, Trump trump);
+// returns a new card with the changed value and suite of
+// the card if it is a left or right bower.
+Card handle_bower(Card card, Trump trump);
+
+// returns false if the deck contains a card of suite lead and card isn't of 
+// suite lead. returns true otherwise. trump is the games trump
+bool correct_suite_player(Card card, Card* deck, Trump lead, Trump trump,
+        int rounds);
 
 #endif /* CARDS_H */ 
