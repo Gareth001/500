@@ -30,10 +30,59 @@ Card* create_deck() {
     deck[j].suite = NOTRUMPS;
     
     // shuffle here
+    for (int i = 42; i > 0; i--) {
+        int j = rand() % (i+1);
+        swap_cards(deck, i, j);
+    }
+
     
     // return this deck
     return deck;
     
+}
+
+
+// takes card and moves it to newpos, moving everything above and
+// including newpos up a position. thanks boyd!
+void insert_card(Card* deck, Card* card, int origpos, int newpos) {
+
+    // take card we are inserting out of the deck
+    // move every card from below that card to the place its moving to up one
+    // place card in the new open space
+
+    //take the card out of the deck
+    int cardvalue = card->value; 
+    int cardsuite = card->suite;
+
+    //move every card up
+    for (int i = origpos; i <= newpos; i++) {
+
+        deck[i].value = deck[i+1].value;
+        deck[i].suite = deck[i+1].suite;
+
+    }
+
+    //insert the card at newpos
+    deck[newpos].value = cardvalue;
+    deck[newpos].suite = cardsuite;
+
+}
+
+// swaps two cards given each card's position
+void swap_cards(Card* deck, int origpos, int newpos) {
+
+    //save one card to temp vars
+    int card1value = deck[origpos].value;
+    int card1suite = deck[origpos].suite;
+
+    //move the card from newpos to origpos
+    deck[origpos].value = deck[newpos].value;
+    deck[origpos].suite = deck[newpos].suite;
+
+    //move the saved card to newpos
+    deck[newpos].value = card1value;
+    deck[newpos].suite = card1suite;
+
 }
 
 // returns a human readable representation of the card
@@ -376,7 +425,6 @@ bool correct_suite_player(Card card, Card* deck, Trump lead, Trump trump,
     
     // the only other valid case is if the user has no cards of leading suite
     for (int i = 0; i < rounds; i++) {        
-        
         // if we have a card of the leading suite that we aren't playing 
         // return false. also change it into the bower if necessary
         if (handle_bower(deck[i], trump).suite == lead) {
@@ -394,14 +442,12 @@ bool correct_suite_player(Card card, Card* deck, Trump lead, Trump trump,
 
 // changes the value and suite of the card if it is a left or right bower.
 Card handle_bower(Card card, Trump trump) {
-    
     Card ret;
     ret.value = card.value;
     ret.suite = card.suite;
     
     // must be a jack
     if (ret.value == JACK_VALUE) {
-        
         // check for right bower
         if (ret.suite == trump) {
             ret.value = RIGHT_BOWER_VALUE;

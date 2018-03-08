@@ -88,4 +88,11 @@ Card handle_bower(Card card, Trump trump);
 bool correct_suite_player(Card card, Card* deck, Trump lead, Trump trump,
         int rounds);
 
+// swaps two cards given each card's position
+void swap_cards(Card* deck, int origpos, int newpos);
+
+// takes card and moves it to newpos, moving everything above and
+// including newpos up a position. thanks boyd!
+void insert_card(Card* deck, Card* card, int origpos, int newpos);
+
 #endif /* CARDS_H */ 

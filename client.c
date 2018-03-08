@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
 
     }
     
-    fprintf(stdout, "Connected successfully!\n");
+    fprintf(stdout, "Connected successfully! Waiting for others\n");
     
     // receive start from server
     read_from_fd(fd, BUFFER_LENGTH);

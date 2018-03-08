@@ -314,11 +314,14 @@ void kitty_round(GameInfo* gameInfo) {
         
         // check if the card was valid
         if (card.value == 0) {
+            write(gameInfo->player[gameInfo->p].fd, "Not a card\n", 11);
             continue;
             
         } else if (remove_card_from_deck(card,
                 &gameInfo->player[gameInfo->p].deck, 13 - c) == false) {
             // try and remove the card from the deck
+            write(gameInfo->player[gameInfo->p].fd,
+                    "You don't have that card\n", 25);
             continue;
             
         } else {
@@ -373,6 +376,8 @@ void bet_round(GameInfo* gameInfo) {
                 // check if the bet was valid
                 if (valid_bet(&gameInfo->highestBet, 
                         &gameInfo->suite, msg) == false) {
+                            
+                    write(gameInfo->player[gameInfo->p].fd, "Bad input\n", 10);
                     continue;
                     
                 }
@@ -448,7 +453,8 @@ void joker_round(GameInfo* gameInfo) {
             char* msg = get_message_from_player(gameInfo);
             
             // check length valid
-            if (strlen(msg) != 2) {
+            if (strlen(msg) != 2) { 
+                write(gameInfo->player[gameInfo->p].fd, "Bad length\n", 11);
                 continue;
                 
             }
@@ -462,6 +468,8 @@ void joker_round(GameInfo* gameInfo) {
                 
             }
             
+            write(gameInfo->player[gameInfo->p].fd, "Not a suite\n", 12);
+
         }        
         
     }
@@ -519,12 +527,12 @@ void play_round(GameInfo* gameInfo) {
                 // get card and check validity and remove from deck
                 card = return_card_from_string(get_message_from_player(gameInfo));
                 if (card.value == 0) {
+                    write(gameInfo->player[gameInfo->p].fd, "Not a card\n", 11);
                     continue;
-                    
+
                 }
                 
                 // handle joker here so correct_suite_player works
-                // change jokers suite if we are in no trumps
                 if (card.value == JOKER_VALUE) {
                     if (gameInfo->suite == NOTRUMPS) {
                         card.suite = gameInfo->jokerSuite;
@@ -536,14 +544,20 @@ void play_round(GameInfo* gameInfo) {
                     
                 }
             
+                // check that the player doesn't have another card they 
+                // must be playing, and check they have the card in their deck
                 if (correct_suite_player(card,
                         gameInfo->player[gameInfo->p].deck, lead,
                         gameInfo->suite, NUM_ROUNDS - rounds) == false) {
+                    write(gameInfo->player[gameInfo->p].fd,
+                            "You must play lead suite\n", 25);
                     continue;
                     
                 } else if (remove_card_from_deck(card,
                         &gameInfo->player[gameInfo->p].deck,
                         NUM_ROUNDS - rounds) == false) {
+                    write(gameInfo->player[gameInfo->p].fd,
+                            "You don't have that card\n", 25);
                     continue;
                     
                 } else {
@@ -556,7 +570,7 @@ void play_round(GameInfo* gameInfo) {
             // if we are the first to play, our card is automatically winning
             if (plays == 0) {
                 winner = card;
-                lead = card.suite;
+                lead = handle_bower(card, gameInfo->suite).suite;
                 
             } else if (compare_cards(card, winner, gameInfo->suite) == 1) {
                 // we have a valid card. check if it's higher than winner
@@ -565,8 +579,7 @@ void play_round(GameInfo* gameInfo) {
                 
             }
             
-            // send all the details of the move, different depending
-            // on what play we are up to
+            // send all the details of the move, who's winning / won.
             char* message = malloc(BUFFER_LENGTH * sizeof(char));
             if (++plays == NUM_PLAYERS) {
                 sprintf(message, "Player %d played %s. Player %d won with %s\n",
@@ -657,20 +670,6 @@ Card* deal_cards(GameInfo* gameInfo) {
     // send each player their deck
     send_deck_to_all(10, gameInfo);
 
-    // debugging, print deck
-    fprintf(stdout, "Deck: %s\n", return_hand(deck, 43));
-    
-    // print each players hand
-    for (int i = 0; i < NUM_PLAYERS; i++) {
-        fprintf(stdout, "Player %d: %s\n", i,
-                return_hand(gameInfo->player[i].deck, 10)); 
-        
-        
-    }
-    
-    // print kitty 
-    fprintf(stdout, "kitty: %s\n", return_hand(kitty, 3));
-    
     return kitty;
 
 }
