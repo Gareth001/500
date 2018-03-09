@@ -140,7 +140,8 @@ void game_loop(int fd) {
         char* result = read_from_fd(fd, BUFFER_LENGTH);
 
         if (strcmp(result, "bet") == 0) {
-            fprintf(stdout, "Your bet!\n");
+            fprintf(stdout, "Your bet: ");
+            fflush(stdout);
             // send a bet from the player input
             send_input(fd);
             
@@ -154,6 +155,10 @@ void game_loop(int fd) {
             close(fd);
             exit(5);
             
+        } else if (strcmp("redeal", result) == 0) {
+            fprintf(stdout, "Everyone passed. Game restarting.\n");
+            game_loop(fd);
+
         } else {
             // server sent info on betting, print.
             fprintf(stdout, "%s\n", result);
@@ -172,6 +177,10 @@ void game_loop(int fd) {
         char* result = read_from_fd(fd, BUFFER_LENGTH); // kitty info or not 
         
         if (strcmp(result, "send") == 0) {
+            // get string of how many cards remain
+            fprintf(stdout, "%s: ", read_from_fd(fd, BUFFER_LENGTH));
+            fflush(stdout);
+
             // send input from user
             send_input(fd);                            
             
@@ -186,7 +195,7 @@ void game_loop(int fd) {
             exit(5);
             
         } else {
-            // server sent the joker suite here, we will get jokerdone next
+            // sends our deck with the kitty
             fprintf(stdout, "%s\n", result);
             
         }
@@ -206,7 +215,8 @@ void game_loop(int fd) {
         
         if (strcmp(result, "jokerwant") == 0) {
             // print to user that we want the joker
-            fprintf(stdout, "Choose joker suite:\n");
+            fprintf(stdout, "Choose joker suite: ");
+            fflush(stdout);
             send_input(fd);
             
         } else if (strcmp(result, "jokerdone") == 0) {
@@ -244,7 +254,8 @@ void game_loop(int fd) {
             
             if (strcmp("send", result) == 0) {
                 // send card to server
-                fprintf(stdout, "Choose card to play\n");
+                fprintf(stdout, "Choose card to play: ");
+                fflush(stdout);
                 send_input(fd);
 
             } else if (strcmp("roundover", result) == 0) {
