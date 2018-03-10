@@ -1,10 +1,8 @@
 #ifndef CARDS_H 
 #define CARDS_H 
 
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+// include packages 
+#include "shared.h"
 
 // picture card values
 #define JACK_VALUE 11

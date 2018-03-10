@@ -1,23 +1,13 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <math.h>
-#include <signal.h>
+// server specific deps
 #include <sys/socket.h>
 #include <netdb.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <ctype.h>
-#include <pthread.h>
 #include <time.h>
 
+// header files
 #include "shared.h"
 #include "cards.h"
 
+// server specific defines
 #define NUM_ROUNDS 10
 #define NUM_PLAYERS 4
 
@@ -52,7 +42,6 @@ typedef struct GameInfo {
     int betWinner;
     Trump jokerSuite;
     
-    int players; // current player count
     int p; // current player selected
     
     // permanent stats
@@ -62,7 +51,6 @@ typedef struct GameInfo {
 
 } GameInfo;
 
-// function declaration
 // server related functions
 int open_listen(int port);
 void process_connections(GameInfo* games);
@@ -89,7 +77,7 @@ int main(int argc, char** argv) {
 
     // check arg count
     if (argc != 3) {
-        fprintf(stderr, "server.exe port password");
+        fprintf(stderr, "Usage: server port password");
         return 1;
     }
 
@@ -115,7 +103,7 @@ int main(int argc, char** argv) {
     GameInfo g;
     g.fd = fdServer;
     g.password = argv[2];
-    g.players = 0;
+    g.p = 0;
     g.player = malloc(NUM_PLAYERS * sizeof(Player));
     
     // process connections
@@ -177,7 +165,7 @@ void process_connections(GameInfo* g) {
     socklen_t fromAddrSize;
 
     // loop until we have 4 players waiting to start a game
-    while (g->players != NUM_PLAYERS) {
+    while (g->p != NUM_PLAYERS) {
 
         fromAddrSize = sizeof(struct sockaddr_in);
         // block, waiting for a new connection (fromAddr will be populated
@@ -214,12 +202,12 @@ void process_connections(GameInfo* g) {
 
         // server message
         fprintf(stdout, "Player %d connected with user name '%s'\n",
-            g->players, userBuffer);
+            g->p, userBuffer);
         
         // add name
-        g->player[g->players].name = strdup(userBuffer);
-        g->player[g->players].fd = fd;
-        g->players++;
+        g->player[g->p].name = strdup(userBuffer);
+        g->player[g->p].fd = fd;
+        g->p++;
             
     }
     
@@ -341,7 +329,7 @@ void bet_round(GameInfo* g) {
     g->highestBet = 0;
     g->suite = 0;
     g->betWinner = 0;
-    g->p = 0; // player counter
+    g->p = 0; // reset player counter
 
     // loop until NUM_PLAYERS have passed
     for (int pPassed = 0; pPassed != NUM_PLAYERS; ) {
@@ -684,7 +672,7 @@ int get_winning_tricks(GameInfo* g) {
 
 // returns 0 if the username has not been taken before, 1 otherwise
 int check_valid_username(char* user, GameInfo* g) {
-    for (int i = 0; i < g->players; i++) {        
+    for (int i = 0; i < g->p; i++) {        
         if (strcmp(user, g->player[i].name) == 0) {
             return 1;
             

@@ -1,6 +1,15 @@
 #ifndef SHARED_H 
 #define SHARED_H 
 
+// dependencies 
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netdb.h>
+
 // definitions
 #define BUFFER_LENGTH 100
 #define MAX_PASS_LENGTH 20

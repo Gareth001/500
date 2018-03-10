@@ -1,17 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <math.h>
-#include <signal.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-
 #include "shared.h"
 
 // Exit Statuses
@@ -33,7 +19,7 @@ int main(int argc, char** argv) {
 
     // argument checking
     if (argc != 5) {
-        fprintf(stderr, "client.exe ipaddr port password username\n");
+        fprintf(stderr, "Usage: client ipaddress port password username\n");
         return 1;
         
     }
