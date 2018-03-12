@@ -40,6 +40,7 @@ typedef struct GameInfo {
     Trump suite; // highest bet suite
     int betWinner; // person who won the betting round (and did the kitty)
     Trump jokerSuite; // suite of the joker for no trumps
+    bool misere; // true if misere
 
     int p; // current player selected
 
@@ -152,6 +153,15 @@ void game_loop(GameInfo* game) {
 
     }
 
+    // misere special case
+    if (game->misere == true && get_winning_tricks(game) == 0) {
+        result = "Betting team won!\n";
+        
+    } else if (game->misere == true) {
+        result = "Betting team lost!\n";
+        
+    }
+    
     send_to_all(result, game);
     fprintf(stdout, "%s", result);
 
@@ -322,14 +332,13 @@ Card* deal_cards(GameInfo* game) {
 
 // handles betting round with all players.
 void bet_round(GameInfo* game) {
-    // ignore misere case for now
-
     // set highest bet info
     game->highestBet = 0;
     game->suite = 0;
     game->betWinner = 0;
     game->p = 0; // reset player counter
-
+    game->misere = false;
+    
     // loop until NUM_PLAYERS have passed
     for (int pPassed = 0; pPassed != NUM_PLAYERS; ) {
 
@@ -353,11 +362,25 @@ void bet_round(GameInfo* game) {
                 pPassed++;
                 break;
 
+            } else if (strcmp(msg, "MI\n") == 0) { // misere
+                // check misere conditions are met, must be 7 exactly  
+                if (game->highestBet == 7) {
+                    // it's valid. set bet to be equal to 7 no trumps, 
+                    // that way any 8 can beat this bet
+                    game->highestBet = 7;
+                    game->suite = NOTRUMPS;
+                    game->misere = true;
+                    sprintf(send, "Player %d bet misere\n", game->p);
+                    break;
+                    
+                }
+            
             } else if (valid_bet(&game->highestBet,
                     &game->suite, msg) == true) {
                 // update string
                 sprintf(send, "Player %d bet %d%c\n", game->p, game->highestBet,
                         return_trump_char(game->suite));
+                game->misere = false;
                 break;
 
             }
@@ -398,7 +421,7 @@ void bet_round(GameInfo* game) {
             game->highestBet, return_trump_char(game->suite));
     fprintf(stdout, "%s", msg);
     send_to_all(msg, game);
-
+    
 }
 
 // handles the kitty round with all players.
@@ -549,6 +572,17 @@ void play_round(GameInfo* game) {
         // loop until we get to NUM_PLAYERS plays
         for (int plays = 0; plays != NUM_PLAYERS; ) {
 
+            // check if we are teammate of misere player. if so skip us
+            if (game->misere == true &&
+                    game->p == (game->betWinner + 2) % NUM_PLAYERS) {
+                
+                plays++;
+                game->p++;
+                game->p %= NUM_PLAYERS;
+                continue;
+                
+            }
+        
             // current card
             Card card;
 

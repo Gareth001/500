@@ -349,7 +349,6 @@ int connect_to(struct in_addr* ipAddress, int port) {
     // attempt to connect to the server
     if (connect(fileDes, (struct sockaddr*)&socketAddr,
             sizeof(socketAddr)) < 0) {
-        perror("Connect failed\n");
         exit(4);
 
     }
