@@ -214,6 +214,7 @@ Card return_card_from_string(char* card) {
                 return ret;
 
         }
+        
     }
 
     // value and suite is valid, so set suite and return
