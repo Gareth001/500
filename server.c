@@ -41,6 +41,7 @@ typedef struct GameInfo {
     int betWinner; // person who won the betting round (and did the kitty)
     Trump jokerSuite; // suite of the joker for no trumps
     bool misere; // true if misere
+    bool open; // true if open misere
 
     int p; // current player selected
 
@@ -342,7 +343,7 @@ void bet_round(GameInfo* game) {
     // loop until NUM_PLAYERS have passed
     for (int pPassed = 0; pPassed != NUM_PLAYERS; ) {
 
-        // string to send to all users
+        // this players bet in string form
         char* send = malloc(BUFFER_LENGTH * sizeof(char));
 
         // loop until we get a valid bet
@@ -375,12 +376,28 @@ void bet_round(GameInfo* game) {
                     
                 }
             
+            } else if (strcmp(msg, "OPENMI\n") == 0) { // open misere
+                // check misere conditions are met, must be <= 10D  
+                if (game->highestBet < 10 || (game->highestBet == 10 &&
+                        game->suite <= DIAMONDS)) {
+                    // it's valid. set bet to be equal to 10 diamonds, 
+                    // that way 10H or higher can beat it 
+                    game->highestBet = 10;
+                    game->suite = DIAMONDS;
+                    game->misere = true;
+                    game->open = true;
+                    sprintf(send, "Player %d bet open misere\n", game->p);
+                    break;
+                    
+                }
+            
             } else if (valid_bet(&game->highestBet,
                     &game->suite, msg) == true) {
                 // update string
                 sprintf(send, "Player %d bet %d%c\n", game->p, game->highestBet,
                         return_trump_char(game->suite));
                 game->misere = false;
+                game->open = false;
                 break;
 
             }
@@ -398,7 +415,7 @@ void bet_round(GameInfo* game) {
         game->p %= NUM_PLAYERS;
 
     }
-
+    
     // case where everyone passed, we want to redeal
     if (game->highestBet == 0) {
         send_to_all("redeal\n", game);
@@ -417,8 +434,19 @@ void bet_round(GameInfo* game) {
 
     // send winning bet to all players
     char* msg = malloc(BUFFER_LENGTH * sizeof(char));
-    sprintf(msg, "Player %d won the bet with %d%c!\n", game->p,
-            game->highestBet, return_trump_char(game->suite));
+    if (game->open == true) {
+        sprintf(msg, "Player %d won the bet with open misere!\n", game->p);
+        game->suite = NOTRUMPS; // set suite of gameplay to no trumps
+
+    } else if (game->misere == true) {
+        sprintf(msg, "Player %d won the bet with misere!\n", game->p);
+        
+    } else {
+        sprintf(msg, "Player %d won the bet with %d%c!\n", game->p,
+                game->highestBet, return_trump_char(game->suite));
+        
+    }
+    
     fprintf(stdout, "%s", msg);
     send_to_all(msg, game);
     
@@ -550,9 +578,24 @@ void play_round(GameInfo* game) {
 
     // loop until 10 rounds have passed
     for (int rounds = 0; rounds != NUM_ROUNDS; ) {
+        
+        // send something here to mark start of play
+        send_to_all("roundstart\n", game);
+        
         // send each player their deck now that it's started
         send_deck_to_all(NUM_ROUNDS - rounds, game);
 
+        // check if the game is open misere
+        // if so send all players the bet winners hand
+        if (game->open == true) {
+            char* message = malloc(BUFFER_LENGTH * sizeof(char));
+            sprintf(message, "Player %d's hand: %s\n", game->betWinner, 
+                    return_hand(game->player[game->betWinner].deck, 
+                    NUM_ROUNDS - rounds));
+            send_to_all_except(message, game, game->betWinner);
+            
+        }
+                
         // send round to all
         char* buff = malloc(BUFFER_LENGTH * sizeof(char));
         sprintf(buff, "Round %d\n", rounds);
@@ -582,7 +625,7 @@ void play_round(GameInfo* game) {
                 continue;
                 
             }
-        
+            
             // current card
             Card card;
 
@@ -679,6 +722,9 @@ void play_round(GameInfo* game) {
 
     }
 
+    // send something here to mark end of play
+    send_to_all("gameover\n", game);
+    
 }
 
 // return a string representing a card read from the current player, doubles up

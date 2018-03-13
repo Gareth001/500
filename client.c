@@ -261,6 +261,13 @@ void joker_round(int fileDes) {
 void play_round(int fileDes) {
     while (1) {
 
+        // get message from server
+        char* msg = read_from_fd(fileDes, BUFFER_LENGTH);
+        if (strcmp(msg, "gameover") == 0) {
+            break;
+            
+        }
+    
         // get hand from server
         fprintf(stdout, "Your hand: %s\n",
                 read_from_fd(fileDes, BUFFER_LENGTH));

@@ -4,8 +4,8 @@
 ## Features
 * Command line implementation of 500
 * Online gameplay, play with your friends across the internet
-* Very lightweight with only a 15kb download
-* Fully* implemented 500 functionality, such as enforcing following suite and misere
+* Very lightweight with only a 16kb download
+* Fully implemented 500 functionality, such as enforcing following suite and misere
 
 
 ## Installation
@@ -16,12 +16,15 @@ Requires at least gcc and make.
 
 ## Running
 Server: ./server port password
+
 Client: ./client ipaddress port password username
 
 ## Input
 Suites and Trumps are represented with the starting character of each trump, so **S**pades, **C**lubs, **D**iamonds, **H**earts, **N**o trumps in order from lowest to highest. 
-When betting, send a number between 6 and 10 followed by a character representing the trump. E.g. 7 No trumps is bet by sending 7N. Misere is bet by sending **MI** when the current bet is 7.
+When betting, send a number between 6 and 10 followed by a character representing the trump. E.g. 7 No trumps is bet by sending 7N. Misere is bet by sending **MI** when the current bet is 7. Open Misere is bet by **OPENMI**, and can be bet any time.
+
 Passing is done by **PA**, betting finishes when all players pass (including the winner).
+
 When choosing the joker suite if you won with a no trumps bet, send a single character representing the suite of the card.
 
 Number cards are represented by their numerical value followed by the suite of the card. E.g. 8 of Spades is 8S.
