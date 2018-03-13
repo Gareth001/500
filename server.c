@@ -324,6 +324,10 @@ Card* deal_cards(GameInfo* game) {
     }
 
     // sort each deck by suite here!
+    for (int i = 0; i < NUM_PLAYERS; i++) {
+        sort_deck(&game->player[i].deck, NUM_ROUNDS, NOTRUMPS, NOTRUMPS);
+        
+    }
 
     // send each player their deck and return the kitty
     send_deck_to_all(10, game);
@@ -463,6 +467,10 @@ void kitty_round(GameInfo* game) {
 
     }
 
+    // sort the deck by suite here!
+    sort_deck(&game->player[game->betWinner].deck, NUM_ROUNDS + 3,
+            game->suite, NOTRUMPS);
+    
     // prepare string to send to the winner and send it
     char* msg = malloc(BUFFER_LENGTH * sizeof(char));
     sprintf(msg, "You won! Pick 3 cards to discard: %s\n",
@@ -496,11 +504,11 @@ void kitty_round(GameInfo* game) {
         } else {
             // otherwise it was a success, we need 1 less card now
             c++;
-
+            
         }
 
     }
-
+    
     // send kitty done to all
     send_to_all("kittyend\n", game);
 
@@ -582,6 +590,13 @@ void play_round(GameInfo* game) {
         // send something here to mark start of play
         send_to_all("roundstart\n", game);
         
+        // sort each players deck
+        for (int i = 0; i < NUM_PLAYERS; i++) {
+            sort_deck(&game->player[i].deck, NUM_ROUNDS - rounds,
+                    game->suite, game->jokerSuite);
+            
+        }
+
         // send each player their deck now that it's started
         send_deck_to_all(NUM_ROUNDS - rounds, game);
 
@@ -666,7 +681,8 @@ void play_round(GameInfo* game) {
                     continue;
 
                 } else {
-                    break; // card is good
+                    // card is good
+                    break;
 
                 }
 
@@ -714,7 +730,7 @@ void play_round(GameInfo* game) {
 
         // send players how many tricks the winning team has won
         char* message = malloc(BUFFER_LENGTH * sizeof(char));
-        sprintf(message, "Betting team has won %d tricks\n",
+        sprintf(message, "Betting team has won %d trick(s)\n",
                 get_winning_tricks(game));
 
         send_to_all(message, game);

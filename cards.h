@@ -93,4 +93,7 @@ void swap_cards(Card* deck, int origpos, int newpos);
 // including newpos up a position. thanks boyd!
 void insert_card(Card* deck, Card* card, int origpos, int newpos);
 
+// sorts deck by trump, use NOTRUMPS for no suite chosen
+void sort_deck(Card** deck, int cards, Trump trump, Trump jokerSuite);
+
 #endif /* CARDS_H */ 
