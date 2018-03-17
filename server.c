@@ -343,6 +343,7 @@ void bet_round(GameInfo* game) {
     game->betWinner = 0;
     game->p = 0; // reset player counter
     game->misere = false;
+    game->open = false;
     
     // loop until NUM_PLAYERS have passed
     for (int pPassed = 0; pPassed != NUM_PLAYERS; ) {
@@ -360,14 +361,14 @@ void bet_round(GameInfo* game) {
             char* msg = get_message_from_player(game);
 
             // check if it's a pass
-            if (strcmp(msg, "PA\n") == 0) {
+            if (strcmp(msg, "PASS\n") == 0) {
                 // set passed to true, change send msg
                 game->player[game->p].hasPassed = true;
                 sprintf(send, "Player %d passed\n", game->p);
                 pPassed++;
                 break;
 
-            } else if (strcmp(msg, "MI\n") == 0) { // misere
+            } else if (strcmp(msg, "MISERE\n") == 0) { // misere
                 // check misere conditions are met, must be 7 exactly  
                 if (game->highestBet == 7) {
                     // it's valid. set bet to be equal to 7 no trumps, 
@@ -380,7 +381,7 @@ void bet_round(GameInfo* game) {
                     
                 }
             
-            } else if (strcmp(msg, "OPENMI\n") == 0) { // open misere
+            } else if (strcmp(msg, "OPENMISERE\n") == 0) { // open misere
                 // check misere conditions are met, must be <= 10D  
                 if (game->highestBet < 10 || (game->highestBet == 10 &&
                         game->suite <= DIAMONDS)) {

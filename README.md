@@ -10,7 +10,7 @@
 
 ## Installation
 Requires at least gcc and make.
-1. Download zip of source through github
+1. Download zip (or tar.gz) of source through github, under releases
 2. Extract and change directory
 3. Compile with make
 
@@ -21,9 +21,9 @@ Client: ./client ipaddress port password username
 
 ## Input
 Suites and Trumps are represented with the starting character of each trump, so **S**pades, **C**lubs, **D**iamonds, **H**earts, **N**o trumps in order from lowest to highest. 
-When betting, send a number between 6 and 10 followed by a character representing the trump. E.g. 7 No trumps is bet by sending 7N. Misere is bet by sending **MI** when the current bet is 7. Open Misere is bet by **OPENMI**, and can be bet any time.
+When betting, send a number between 6 and 10 followed by a character representing the trump. E.g. 7 No trumps is bet by sending 7N. Misere is bet by sending **MISERE** when the current bet is 7. Open Misere is bet by **OPENMISERE**, and can be bet any time.
 
-Passing is done by **PA**, betting finishes when all players pass (including the winner).
+Passing is done by **PASS**, betting finishes when all players pass (including the winner).
 
 When choosing the joker suite if you won with a no trumps bet, send a single character representing the suite of the card.
 

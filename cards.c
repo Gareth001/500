@@ -1,7 +1,7 @@
 // contains all our card value defines
 #include "cards.h"
 
-// returns an array of 43 cards, not shuffled.
+// returns an array of 43 cards, shuffled.
 Card* create_deck() {
     Card* deck = malloc(43 * sizeof(Card));
 
@@ -29,58 +29,27 @@ Card* create_deck() {
     deck[card].value = JOKER_VALUE;
     deck[card].suite = NOTRUMPS;
 
-    // shuffle here
+    // shuffle
     for (int i = 42; i > 0; i--) {
         swap_cards(deck, i, rand() % (i+1));
+        
     }
-
 
     // return this deck
     return deck;
 
 }
 
-
-// takes card and moves it to newpos, moving everything above and
-// including newpos up a position. thanks boyd!
-void insert_card(Card* deck, Card* card, int origpos, int newpos) {
-
-    // take card we are inserting out of the deck
-    // move every card from below that card to the place its moving to up one
-    // place card in the new open space
-
-    // take the card out of the deck
-    int cardvalue = card->value;
-    int cardsuite = card->suite;
-
-    // move every card up
-    for (int i = origpos; i <= newpos; i++) {
-
-        deck[i].value = deck[i + 1].value;
-        deck[i].suite = deck[i + 1].suite;
-
-    }
-
-    //insert the card at newpos
-    deck[newpos].value = cardvalue;
-    deck[newpos].suite = cardsuite;
-
-}
-
-// swaps two cards given each card's position
+// swaps two cards in the given positions in the given deck
 void swap_cards(Card* deck, int origpos, int newpos) {
-
-    // save one card to temp vars
-    int card1value = deck[origpos].value;
-    int card1suite = deck[origpos].suite;
+    // save original card
+    Card temp = deck[origpos];
 
     // move the card from newpos to origpos
-    deck[origpos].value = deck[newpos].value;
-    deck[origpos].suite = deck[newpos].suite;
+    deck[origpos] = deck[newpos];
 
     // move the saved card to newpos
-    deck[newpos].value = card1value;
-    deck[newpos].suite = card1suite;
+    deck[newpos] = temp;
 
 }
 
@@ -332,7 +301,7 @@ void sort_deck(Card** deck, int cards, Trump trump, Trump jokerSuite) {
             Card card = (*deck)[j];
             
             // handle bowers if we need to 
-            if (trump != NOTRUMPS && trump != DEFAULT_SUITE) {
+            if (trump != NOTRUMPS) {
                 card = handle_bower(card, trump);
                 
             }
@@ -340,20 +309,13 @@ void sort_deck(Card** deck, int cards, Trump trump, Trump jokerSuite) {
             // make sure joker is in the right place
             if (card.value == JOKER_VALUE) {
                 
-                // if we're in DEFAULT_SUITE, put joker at the start
+                // if we're in NOTRUMPS, handle joker differently
                 if (trump == NOTRUMPS) {
                     
-                    // if joker suite is chosen or not
-                    // note if the trump is no trumps it will be sorted to top
-                    if (jokerSuite == NOTRUMPS) {
-                        card.suite = NOTRUMPS;
-                        
-                    } else {
-                        // otherwise we have chosen joker suite, so set it.
-                        card.suite = jokerSuite;
+                    // if trump is notrumps then joker suite is also no trumps
+                    // so this works even if suite not chosen
+                    card.suite = jokerSuite;             
 
-                    }
-                    
                 } else {
                     // we are in a valid suite, set joker to be this suite
                     card.suite = trump;

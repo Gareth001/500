@@ -59,7 +59,7 @@ char* return_hand(Card* cards, int num);
 // return 0 if card a == card b
 int compare_cards(Card a, Card b, Trump trump);
 
-// returns an array of 43 cards, not shuffled. 
+// returns an array of 43 cards, shuffled.
 Card* create_deck();
 
 // checks if a bet is valid, and sets the new highest bet if it is, 
@@ -86,12 +86,8 @@ Card handle_bower(Card card, Trump trump);
 bool correct_suite_player(Card card, Card* deck, Trump lead, Trump trump,
         int rounds);
 
-// swaps two cards given each card's position
+// swaps two cards in the given positions in the given deck
 void swap_cards(Card* deck, int origpos, int newpos);
-
-// takes card and moves it to newpos, moving everything above and
-// including newpos up a position. thanks boyd!
-void insert_card(Card* deck, Card* card, int origpos, int newpos);
 
 // sorts deck by trump, use NOTRUMPS for no suite chosen
 void sort_deck(Card** deck, int cards, Trump trump, Trump jokerSuite);
