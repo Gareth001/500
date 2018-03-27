@@ -42,6 +42,9 @@ typedef struct GameInfo {
     Trump jokerSuite; // suite of the joker for no trumps
     bool misere; // true if misere
     bool open; // true if open misere
+    
+    int* teamPoints; // points for each team, index 0 is player 0's team, 
+    // 1 is player 1's team
 
     int p; // current player selected
 
@@ -108,6 +111,7 @@ int main(int argc, char** argv) {
     game.password = argv[2];
     game.p = 0;
     game.player = malloc(NUM_PLAYERS * sizeof(Player));
+    game.teamPoints = malloc(2 * sizeof(Player));
 
     // process connections
     process_connections(&game);
@@ -116,9 +120,6 @@ int main(int argc, char** argv) {
 
 // main game loop
 void game_loop(GameInfo* game) {
-    fprintf(stdout, "Game starting\n");
-
-    send_player_details(game);
 
     // shuffle and deal
     fprintf(stdout, "Shuffling and Dealing\n");
@@ -146,28 +147,88 @@ void game_loop(GameInfo* game) {
     // number of tricks the betting team has won
     char* result = malloc(BUFFER_LENGTH * sizeof(char));
 
-    if (game->highestBet > get_winning_tricks(game)) {
-        result = "Betting team lost!\n";
+    // misere special case first
+    if (game->misere == true && get_winning_tricks(game) == 0) {
+        // betting team won a misere!
+        result = "Betting team won!\n";
+        
+        // add points to user depending on misere type
+        if (game->open == true) {
+            game->teamPoints[game->betWinner % 2] += OPEN_MISERE_POINTS;
+            
+        } else {
+            game->teamPoints[game->betWinner % 2] += MISERE_POINTS;
+            
+        }
+        
 
+    } else if (game->misere == true) {
+        // betting team lost a misere! 
+        result = "Betting team lost!\n";
+        
+        // take away points depending on misere type
+        if (game->open == true) {
+            game->teamPoints[game->betWinner % 2] -= OPEN_MISERE_POINTS;
+            
+        } else {
+            game->teamPoints[game->betWinner % 2] -= MISERE_POINTS;
+            
+        }
+
+    } else if (game->highestBet > get_winning_tricks(game)) {
+        result = "Betting team lost!\n";
+        
+        // take away points depending on how much they bet
+        // points formula from table on rules web page
+        game->teamPoints[game->betWinner % 2] -= 
+                ((4 + game->suite * 2) * 10 + (game->highestBet - 6) * 100);
+        
     } else {
         result = "Betting team won!\n";
 
-    }
+        // give points depending on how much they bet
+        game->teamPoints[game->betWinner % 2] += 
+                ((4 + game->suite * 2) * 10 + (game->highestBet - 6) * 100);
 
-    // misere special case
-    if (game->misere == true && get_winning_tricks(game) == 0) {
-        result = "Betting team won!\n";
-        
-    } else if (game->misere == true) {
-        result = "Betting team lost!\n";
+    }
+    
+    // give opponents 10 points for every trick they win (only if not misere)
+    if (game->misere == false) {
+        game->teamPoints[(game->betWinner + 1)% 2] +=
+                (NUM_ROUNDS - get_winning_tricks(game)) * 10;
         
     }
     
+    // send the games result
     send_to_all(result, game);
     fprintf(stdout, "%s", result);
 
+    // generate each teams points string
+    char** team = malloc(2 * BUFFER_LENGTH * sizeof(char));
+    team[0] = malloc(BUFFER_LENGTH * sizeof(char));
+    team[1] = malloc(BUFFER_LENGTH * sizeof(char));
+   
+    sprintf(team[0], "%d\n", game->teamPoints[0]);
+    sprintf(team[1], "%d\n", game->teamPoints[1]);
+
+    // send each player their and their opponents scores
+    for (int i = 0; i < NUM_PLAYERS; i++) {
+        send_to_player(i, game, team[i % 2]);
+        send_to_player(i, game, team[(i + 1) % 2]);
+
+    }
+    
+    free(team);
+    
+    // check if a team has won (or lost)
+    
+    
+    // restart game
+    game_loop(game);
+    
     // game is over. exit
     exit(0);
+    
 }
 
 // process connections (from the lecture with my additions)
@@ -245,6 +306,11 @@ void process_connections(GameInfo* game) {
 
     // all players are here, start the game!
     send_to_all("start\n", game);
+    
+    // send player details here, we only want to do this once per run
+    fprintf(stdout, "Game starting\n");
+    send_player_details(game);
+
     game_loop(game);
 
 }
@@ -741,7 +807,7 @@ void play_round(GameInfo* game) {
 
     // send something here to mark end of play
     send_to_all("gameover\n", game);
-    
+        
 }
 
 // return a string representing a card read from the current player, doubles up

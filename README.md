@@ -5,12 +5,12 @@
 * Command line implementation of 500
 * Online gameplay, play with your friends across the internet
 * Very lightweight with only a 16kb download
-* Fully implemented 500 functionality, such as enforcing following suite and misere
+* Fully implemented 500 functionality, such as enforcing following suite, misere and scoring
 
 
 ## Installation
 Requires at least gcc and make.
-1. Download zip (or tar.gz) of source through github, under releases
+1. Download zip (or tar.gz) of source through github, under releases (or download latest zip from this page)
 2. Extract and change directory
 3. Compile with make
 

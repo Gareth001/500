@@ -98,7 +98,12 @@ int main(int argc, char** argv) {
     }
 
     // take us to the game!
-    fprintf(stdout, "Game started!\n");
+    fprintf(stdout, "All players connected!\n");
+
+    // get player details here, we only want to do this once per game
+    get_player_details(fileDes);
+
+    // begin game loop
     game_loop(fileDes);
 
 }
@@ -106,7 +111,9 @@ int main(int argc, char** argv) {
 // game loop.
 void game_loop(int fileDes) {
 
-    get_player_details(fileDes);
+    // print out all the cards from the server
+    fprintf(stdout, "Game starting!\nYour hand: %s\n",
+            read_from_fd(fileDes, BUFFER_LENGTH));
 
     fprintf(stdout, "Betting round starting\n");
 
@@ -129,6 +136,20 @@ void game_loop(int fileDes) {
     fprintf(stdout, "Game Begins\n");
 
     play_round(fileDes);
+    
+    // get final result of the game
+    fprintf(stdout, "%s\n", read_from_fd(fileDes, BUFFER_LENGTH));
+    
+    // get total points for both teams
+    // points for my team
+    fprintf(stdout, "Your teams points: %s\n",
+            read_from_fd(fileDes, BUFFER_LENGTH));
+    // points for other team
+    fprintf(stdout, "Other teams points: %s\n",
+            read_from_fd(fileDes, BUFFER_LENGTH));
+            
+    // restart game 
+    game_loop(fileDes);
 
     // Close socket
     close(fileDes);
@@ -149,9 +170,6 @@ void get_player_details(int fileDes) {
         write(fileDes, "yes\n", 4);
 
     }
-
-    // print out all the cards from the server
-    fprintf(stdout, "Your hand: %s\n", read_from_fd(fileDes, BUFFER_LENGTH));
 
 }
 
@@ -255,6 +273,7 @@ void joker_round(int fileDes) {
         }
 
     }
+    
 }
 
 // handles the play round
@@ -305,9 +324,6 @@ void play_round(int fileDes) {
         fprintf(stdout, "%s\n", read_from_fd(fileDes, BUFFER_LENGTH));
 
     }
-
-    // get final result of the game
-    fprintf(stdout, "%s\n", read_from_fd(fileDes, BUFFER_LENGTH));
 
 }
 

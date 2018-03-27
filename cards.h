@@ -21,6 +21,10 @@
 #define NOTRUMPS 4
 #define DEFAULT_SUITE -1
 
+// points for winning various bets
+#define OPEN_MISERE_POINTS 500
+#define MISERE_POINTS 250
+
 // cards. We store a value (4, 7, king, ace etc) and a suite (spades etc).
 // In the case of the joker, the value is set to 15 and the suite is set as 
 // the trump in the case of a normal game and the chosen suite if no trumps is
