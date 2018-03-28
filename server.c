@@ -45,7 +45,8 @@ typedef struct GameInfo {
     
     int* teamPoints; // points for each team, index 0 is player 0's team, 
     // 1 is player 1's team
-
+    
+    int start; // betting player
     int p; // current player selected
 
     char* password;
@@ -78,6 +79,7 @@ void bet_round(GameInfo* game);
 void kitty_round(GameInfo* game);
 void joker_round(GameInfo* game);
 void play_round(GameInfo* game);
+void end_round(GameInfo* game);
 
 int main(int argc, char** argv) {
 
@@ -110,6 +112,7 @@ int main(int argc, char** argv) {
     game.fd = fdServer;
     game.password = argv[2];
     game.p = 0;
+    game.start = 0;
     game.player = malloc(NUM_PLAYERS * sizeof(Player));
     game.teamPoints = malloc(2 * sizeof(Player));
 
@@ -121,114 +124,35 @@ int main(int argc, char** argv) {
 // main game loop
 void game_loop(GameInfo* game) {
 
-    // shuffle and deal
-    fprintf(stdout, "Shuffling and Dealing\n");
-    srand(time(NULL)); // random seed
-    game->kitty = deal_cards(game); // kitty and dealing, debug info too
+    // loop until game exits (from end_round function or bad read)
+    while (1) {
+        // shuffle and deal
+        fprintf(stdout, "Shuffling and Dealing\n");
+        srand(time(NULL)); // random seed
+        game->kitty = deal_cards(game); // kitty and dealing, debug info too
 
-    // betting round
-    fprintf(stdout, "Betting round starting\n");
-    bet_round(game);
-    fprintf(stdout, "Betting round ending\n");
+        // betting round
+        fprintf(stdout, "Betting round starting\n");
+        bet_round(game);
+        fprintf(stdout, "Betting round ending\n");
 
-    // kitty round
-    fprintf(stdout, "Dealing kitty\n");
-    kitty_round(game);
-    fprintf(stdout, "Kitty finished\n");
+        // kitty round
+        fprintf(stdout, "Dealing kitty\n");
+        kitty_round(game);
+        fprintf(stdout, "Kitty finished\n");
 
-    // joker suite round. note this only occurs if there are no trumps.
-    joker_round(game);
+        // joker suite round. note this only occurs if there are no trumps.
+        joker_round(game);
 
-    // play round
-    fprintf(stdout, "Game Begins\n");
-    play_round(game);
-
-    // tell the users if the betting team has won or not
-    // number of tricks the betting team has won
-    char* result = malloc(BUFFER_LENGTH * sizeof(char));
-
-    // misere special case first
-    if (game->misere == true && get_winning_tricks(game) == 0) {
-        // betting team won a misere!
-        result = "Betting team won!\n";
+        // play round
+        fprintf(stdout, "Game Begins\n");
+        play_round(game);
         
-        // add points to user depending on misere type
-        if (game->open == true) {
-            game->teamPoints[game->betWinner % 2] += OPEN_MISERE_POINTS;
-            
-        } else {
-            game->teamPoints[game->betWinner % 2] += MISERE_POINTS;
-            
-        }
-        
-
-    } else if (game->misere == true) {
-        // betting team lost a misere! 
-        result = "Betting team lost!\n";
-        
-        // take away points depending on misere type
-        if (game->open == true) {
-            game->teamPoints[game->betWinner % 2] -= OPEN_MISERE_POINTS;
-            
-        } else {
-            game->teamPoints[game->betWinner % 2] -= MISERE_POINTS;
-            
-        }
-
-    } else if (game->highestBet > get_winning_tricks(game)) {
-        result = "Betting team lost!\n";
-        
-        // take away points depending on how much they bet
-        // points formula from table on rules web page
-        game->teamPoints[game->betWinner % 2] -= 
-                ((4 + game->suite * 2) * 10 + (game->highestBet - 6) * 100);
-        
-    } else {
-        result = "Betting team won!\n";
-
-        // give points depending on how much they bet
-        game->teamPoints[game->betWinner % 2] += 
-                ((4 + game->suite * 2) * 10 + (game->highestBet - 6) * 100);
-
-    }
-    
-    // give opponents 10 points for every trick they win (only if not misere)
-    if (game->misere == false) {
-        game->teamPoints[(game->betWinner + 1)% 2] +=
-                (NUM_ROUNDS - get_winning_tricks(game)) * 10;
+        // end of round actions
+        end_round(game);
         
     }
-    
-    // send the games result
-    send_to_all(result, game);
-    fprintf(stdout, "%s", result);
 
-    // generate each teams points string
-    char** team = malloc(2 * BUFFER_LENGTH * sizeof(char));
-    team[0] = malloc(BUFFER_LENGTH * sizeof(char));
-    team[1] = malloc(BUFFER_LENGTH * sizeof(char));
-   
-    sprintf(team[0], "%d\n", game->teamPoints[0]);
-    sprintf(team[1], "%d\n", game->teamPoints[1]);
-
-    // send each player their and their opponents scores
-    for (int i = 0; i < NUM_PLAYERS; i++) {
-        send_to_player(i, game, team[i % 2]);
-        send_to_player(i, game, team[(i + 1) % 2]);
-
-    }
-    
-    free(team);
-    
-    // check if a team has won (or lost)
-    
-    
-    // restart game
-    game_loop(game);
-    
-    // game is over. exit
-    exit(0);
-    
 }
 
 // process connections (from the lecture with my additions)
@@ -407,7 +331,7 @@ void bet_round(GameInfo* game) {
     game->highestBet = 0;
     game->suite = 0;
     game->betWinner = 0;
-    game->p = 0; // reset player counter
+    game->p = game->start; // reset player counter (to starting better)
     game->misere = false;
     game->open = false;
     
@@ -808,6 +732,114 @@ void play_round(GameInfo* game) {
     // send something here to mark end of play
     send_to_all("gameover\n", game);
         
+}
+
+// handles end of round actions
+void end_round(GameInfo* game) {
+    // tell the users if the betting team has won or not
+    // number of tricks the betting team has won
+    char* result = malloc(BUFFER_LENGTH * sizeof(char));
+
+    // misere special case first
+    if (game->misere == true && get_winning_tricks(game) == 0) {
+        // betting team won a misere!
+        result = "Betting team won!\n";
+        
+        // add points to user depending on misere type
+        if (game->open == true) {
+            game->teamPoints[game->betWinner % 2] += OPEN_MISERE_POINTS;
+            
+        } else {
+            game->teamPoints[game->betWinner % 2] += MISERE_POINTS;
+            
+        }
+
+    } else if (game->misere == true) {
+        // betting team lost a misere! 
+        result = "Betting team lost!\n";
+        
+        // take away points depending on misere type
+        if (game->open == true) {
+            game->teamPoints[game->betWinner % 2] -= OPEN_MISERE_POINTS;
+            
+        } else {
+            game->teamPoints[game->betWinner % 2] -= MISERE_POINTS;
+            
+        }
+
+    } else if (game->highestBet > get_winning_tricks(game)) {
+        result = "Betting team lost!\n";
+        
+        // take away points depending on how much they bet
+        // points formula from table on rules web page
+        game->teamPoints[game->betWinner % 2] -= 
+                ((4 + game->suite * 2) * 10 + (game->highestBet - 6) * 100);
+        
+    } else {
+        result = "Betting team won!\n";
+
+        // give points depending on how much they bet
+        game->teamPoints[game->betWinner % 2] += 
+                ((4 + game->suite * 2) * 10 + (game->highestBet - 6) * 100);
+
+    }
+    
+    // give opponents 10 points for every trick they win (only if not misere)
+    if (game->misere == false) {
+        game->teamPoints[(game->betWinner + 1)% 2] +=
+                (NUM_ROUNDS - get_winning_tricks(game)) * 10;
+        
+    }
+    
+    // send the games result
+    send_to_all(result, game);
+    fprintf(stdout, "%s", result);
+
+    // generate each teams points string
+    char** team = malloc(2 * BUFFER_LENGTH * sizeof(char));
+    team[0] = malloc(BUFFER_LENGTH * sizeof(char));
+    team[1] = malloc(BUFFER_LENGTH * sizeof(char));
+   
+    sprintf(team[0], "%d\n", game->teamPoints[0]);
+    sprintf(team[1], "%d\n", game->teamPoints[1]);
+
+    // send each player their and their opponents scores
+    for (int i = 0; i < NUM_PLAYERS; i++) {
+        send_to_player(i, game, team[i % 2]);
+        send_to_player(i, game, team[(i + 1) % 2]);
+
+    }
+    
+    bool over = false;
+    
+    // check if a team has won (or lost)
+    for (int i = 0; i < 2; i++) {
+        if (game->teamPoints[i] >= 500) {
+            // team i won
+            over = true;
+            
+        } else if (game->teamPoints[i] <= -500) {
+            // team i lost lost
+            over = true;
+            
+        }
+        
+    }
+    
+    // send message if game is ending or not 
+    if (over == true) {
+        // game is over. exit and tell clients to exit too
+        send_to_all("endgame\n", game);
+        exit(0);
+
+    } else {
+        // otherwise game restarts, change bet clockwise
+        send_to_all("gamenotnover\n", game);
+        game->start++;
+        game->start %= NUM_PLAYERS;
+
+    }
+
 }
 
 // return a string representing a card read from the current player, doubles up

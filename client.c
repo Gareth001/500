@@ -110,48 +110,58 @@ int main(int argc, char** argv) {
 
 // game loop.
 void game_loop(int fileDes) {
-
-    // print out all the cards from the server
-    fprintf(stdout, "Game starting!\nYour hand: %s\n",
-            read_from_fd(fileDes, BUFFER_LENGTH));
-
-    fprintf(stdout, "Betting round starting\n");
-
-    bet_round(fileDes);
-
-    fprintf(stdout, "Waiting for Kitty\n");
-
-    kitty_round(fileDes);
-
-    // kitty is over now
-    fprintf(stdout, "Kitty finished\n");
-
-    // we need to choose the suite for the joker if we are doing no trumps
-    // very similar to how kitty round is handled
-    fprintf(stdout, "Choosing joker suite\n");
-
-    joker_round(fileDes);
-
-    // game begins
-    fprintf(stdout, "Game Begins\n");
-
-    play_round(fileDes);
     
-    // get final result of the game
-    fprintf(stdout, "%s\n", read_from_fd(fileDes, BUFFER_LENGTH));
-    
-    // get total points for both teams
-    // points for my team
-    fprintf(stdout, "Your teams points: %s\n",
-            read_from_fd(fileDes, BUFFER_LENGTH));
-    // points for other team
-    fprintf(stdout, "Other teams points: %s\n",
-            read_from_fd(fileDes, BUFFER_LENGTH));
+    // loop until a team gets to 500 points (or -500 points)
+    while (1) {
+        // print out all the cards from the server
+        fprintf(stdout, "Game starting!\nYour hand: %s\n",
+                read_from_fd(fileDes, BUFFER_LENGTH));
+
+        fprintf(stdout, "Betting round starting\n");
+
+        bet_round(fileDes);
+
+        fprintf(stdout, "Waiting for Kitty\n");
+
+        kitty_round(fileDes);
+
+        // kitty is over now
+        fprintf(stdout, "Kitty finished\n");
+
+        // we need to choose the suite for the joker if we are doing no trumps
+        // very similar to how kitty round is handled
+        fprintf(stdout, "Choosing joker suite\n");
+
+        joker_round(fileDes);
+
+        // game begins
+        fprintf(stdout, "Game Begins\n");
+
+        play_round(fileDes);
+        
+        // get final result of the game
+        fprintf(stdout, "%s\n", read_from_fd(fileDes, BUFFER_LENGTH));
+        
+        // get total points for both teams
+        // points for my team
+        fprintf(stdout, "Your teams points: %s\n",
+                read_from_fd(fileDes, BUFFER_LENGTH));
+        // points for other team
+        fprintf(stdout, "Other teams points: %s\n",
+                read_from_fd(fileDes, BUFFER_LENGTH));
+                
+        // see if game has ended or not (one team on |500| points)
+        char* result = read_from_fd(fileDes, BUFFER_LENGTH);
+        if (strcmp(result, "endgame") == 0) { 
+            // game is over, break from loop
+            break;
             
-    // restart game 
-    game_loop(fileDes);
-
-    // Close socket
+        }
+        
+    }
+    
+    // game finally over
+    fprintf(stdout, "Game over!\n");
     close(fileDes);
     exit(0);
 
