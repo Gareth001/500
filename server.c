@@ -42,10 +42,10 @@ typedef struct GameInfo {
     Trump jokerSuite; // suite of the joker for no trumps
     bool misere; // true if misere
     bool open; // true if open misere
-    
-    int* teamPoints; // points for each team, index 0 is player 0's team, 
+
+    int* teamPoints; // points for each team, index 0 is player 0's team,
     // 1 is player 1's team
-    
+
     int start; // betting player
     int p; // current player selected
 
@@ -65,8 +65,10 @@ void send_to_all_except(char* message, GameInfo* game, int except);
 void send_deck_to_all(int cards, GameInfo* game);
 void send_to_player(int player, GameInfo* game, char* message);
 
-// reading
+// responses from user
 char* get_message_from_player(GameInfo* game);
+Card get_valid_card_from_player(GameInfo* game, Trump lead, int cards);
+bool valid_bet(GameInfo* game, char* msg);
 
 // input related
 int check_valid_username(char* user, GameInfo* game);
@@ -147,10 +149,10 @@ void game_loop(GameInfo* game) {
         // play round
         fprintf(stdout, "Game Begins\n");
         play_round(game);
-        
+
         // end of round actions
         end_round(game);
-        
+
     }
 
 }
@@ -230,7 +232,7 @@ void process_connections(GameInfo* game) {
 
     // all players are here, start the game!
     send_to_all("start\n", game);
-    
+
     // send player details here, we only want to do this once per run
     fprintf(stdout, "Game starting\n");
     send_player_details(game);
@@ -316,7 +318,7 @@ Card* deal_cards(GameInfo* game) {
     // sort each deck by suite here!
     for (int i = 0; i < NUM_PLAYERS; i++) {
         sort_deck(&game->player[i].deck, NUM_ROUNDS, NOTRUMPS, NOTRUMPS);
-        
+
     }
 
     // send each player their deck and return the kitty
@@ -334,7 +336,7 @@ void bet_round(GameInfo* game) {
     game->p = game->start; // reset player counter (to starting better)
     game->misere = false;
     game->open = false;
-    
+
     // loop until NUM_PLAYERS have passed
     for (int pPassed = 0; pPassed != NUM_PLAYERS; ) {
 
@@ -359,35 +361,41 @@ void bet_round(GameInfo* game) {
                 break;
 
             } else if (strcmp(msg, "MISERE\n") == 0) { // misere
-                // check misere conditions are met, must be 7 exactly  
+                // check misere conditions are met, must be 7 exactly
                 if (game->highestBet == 7) {
-                    // it's valid. set bet to be equal to 7 no trumps, 
+                    // it's valid. set bet to be equal to 7 no trumps,
                     // that way any 8 can beat this bet
                     game->highestBet = 7;
                     game->suite = NOTRUMPS;
                     game->misere = true;
                     sprintf(send, "Player %d bet misere\n", game->p);
                     break;
-                    
+
+                } else {
+                    send_to_player(game->p, game,
+                            "Bet must be exactly 7 to bet misere\n");
+
                 }
-            
+
             } else if (strcmp(msg, "OPENMISERE\n") == 0) { // open misere
-                // check misere conditions are met, must be <= 10D  
+                // check misere conditions are met, must be <= 10D
                 if (game->highestBet < 10 || (game->highestBet == 10 &&
                         game->suite <= DIAMONDS)) {
-                    // it's valid. set bet to be equal to 10 diamonds, 
-                    // that way 10H or higher can beat it 
+                    // it's valid. set bet to be equal to 10 diamonds,
+                    // that way 10H or higher can beat it
                     game->highestBet = 10;
                     game->suite = DIAMONDS;
                     game->misere = true;
                     game->open = true;
                     sprintf(send, "Player %d bet open misere\n", game->p);
                     break;
-                    
+
+                } else {
+                    send_to_player(game->p, game, "Bet not high enough\n");
+
                 }
-            
-            } else if (valid_bet(&game->highestBet,
-                    &game->suite, msg) == true) {
+
+            } else if (valid_bet(game, msg) == true) {
                 // update string
                 sprintf(send, "Player %d bet %d%c\n", game->p, game->highestBet,
                         return_trump_char(game->suite));
@@ -397,7 +405,7 @@ void bet_round(GameInfo* game) {
 
             }
 
-            send_to_player(game->p, game, "Invalid bet\n");
+            // error message is sent in valid_bet method
 
         }
 
@@ -410,7 +418,7 @@ void bet_round(GameInfo* game) {
         game->p %= NUM_PLAYERS;
 
     }
-    
+
     // case where everyone passed, we want to redeal
     if (game->highestBet == 0) {
         send_to_all("redeal\n", game);
@@ -435,16 +443,16 @@ void bet_round(GameInfo* game) {
 
     } else if (game->misere == true) {
         sprintf(msg, "Player %d won the bet with misere!\n", game->p);
-        
+
     } else {
         sprintf(msg, "Player %d won the bet with %d%c!\n", game->p,
                 game->highestBet, return_trump_char(game->suite));
-        
+
     }
-    
+
     fprintf(stdout, "%s", msg);
     send_to_all(msg, game);
-    
+
 }
 
 // handles the kitty round with all players.
@@ -461,7 +469,7 @@ void kitty_round(GameInfo* game) {
     // sort the deck by suite here!
     sort_deck(&game->player[game->betWinner].deck, NUM_ROUNDS + 3,
             game->suite, NOTRUMPS);
-    
+
     // prepare string to send to the winner and send it
     char* msg = malloc(BUFFER_LENGTH * sizeof(char));
     sprintf(msg, "You won! Pick 3 cards to discard: %s\n",
@@ -495,11 +503,11 @@ void kitty_round(GameInfo* game) {
         } else {
             // otherwise it was a success, we need 1 less card now
             c++;
-            
+
         }
 
     }
-    
+
     // send kitty done to all
     send_to_all("kittyend\n", game);
 
@@ -577,15 +585,15 @@ void play_round(GameInfo* game) {
 
     // loop until 10 rounds have passed
     for (int rounds = 0; rounds != NUM_ROUNDS; ) {
-        
+
         // send something here to mark start of play
         send_to_all("roundstart\n", game);
-        
+
         // sort each players deck
         for (int i = 0; i < NUM_PLAYERS; i++) {
             sort_deck(&game->player[i].deck, NUM_ROUNDS - rounds,
                     game->suite, game->jokerSuite);
-            
+
         }
 
         // send each player their deck now that it's started
@@ -595,13 +603,13 @@ void play_round(GameInfo* game) {
         // if so send all players the bet winners hand
         if (game->open == true) {
             char* message = malloc(BUFFER_LENGTH * sizeof(char));
-            sprintf(message, "Player %d's hand: %s\n", game->betWinner, 
-                    return_hand(game->player[game->betWinner].deck, 
+            sprintf(message, "Player %d's hand: %s\n", game->betWinner,
+                    return_hand(game->player[game->betWinner].deck,
                     NUM_ROUNDS - rounds));
             send_to_all_except(message, game, game->betWinner);
-            
+
         }
-                
+
         // send round to all
         char* buff = malloc(BUFFER_LENGTH * sizeof(char));
         sprintf(buff, "Round %d\n", rounds);
@@ -624,60 +632,17 @@ void play_round(GameInfo* game) {
             // check if we are teammate of misere player. if so skip us
             if (game->misere == true &&
                     game->p == (game->betWinner + 2) % NUM_PLAYERS) {
-                
+
                 plays++;
                 game->p++;
                 game->p %= NUM_PLAYERS;
                 continue;
-                
+
             }
-            
+
             // current card
-            Card card;
-
-            // loop until we get a valid card from the user
-            while (1) {
-
-                // tell user to send card
-                send_to_player(game->p, game, "send\n");
-
-                // get card and check validity and remove from deck
-                card = return_card_from_string(get_message_from_player(game));
-                if (card.value == 0) {
-                    send_to_player(game->p, game, "Not a card\n");
-                    continue;
-
-                }
-
-                // handle joker here so correct_suite_player works
-                if (card.value == JOKER_VALUE && game->suite == NOTRUMPS) {
-                    card.suite = game->jokerSuite;
-
-                } else if (card.value == JOKER_VALUE) {
-                    card.suite = game->suite;
-
-                }
-
-                // check that the player doesn't have another card they
-                // must be playing, and check they have the card in their deck
-                if (correct_suite_player(card, game->player[game->p].deck, lead,
-                        game->suite, NUM_ROUNDS - rounds) == false) {
-                    send_to_player(game->p, game, "You must play lead suite\n");
-                    continue;
-
-                } else if (remove_card_from_deck(card,
-                        &game->player[game->p].deck,
-                        NUM_ROUNDS - rounds) == false) {
-                    send_to_player(game->p, game, "You don't have that card\n");
-                    continue;
-
-                } else {
-                    // card is good
-                    break;
-
-                }
-
-            }
+            Card card = get_valid_card_from_player(game, lead,
+                    NUM_ROUNDS - rounds);
 
             // if we are the first to play, our card is automatically winning
             if (plays == 0) {
@@ -731,7 +696,7 @@ void play_round(GameInfo* game) {
 
     // send something here to mark end of play
     send_to_all("gameover\n", game);
-        
+
 }
 
 // handles end of round actions
@@ -744,53 +709,53 @@ void end_round(GameInfo* game) {
     if (game->misere == true && get_winning_tricks(game) == 0) {
         // betting team won a misere!
         result = "Betting team won!\n";
-        
+
         // add points to user depending on misere type
         if (game->open == true) {
             game->teamPoints[game->betWinner % 2] += OPEN_MISERE_POINTS;
-            
+
         } else {
             game->teamPoints[game->betWinner % 2] += MISERE_POINTS;
-            
+
         }
 
     } else if (game->misere == true) {
-        // betting team lost a misere! 
+        // betting team lost a misere!
         result = "Betting team lost!\n";
-        
+
         // take away points depending on misere type
         if (game->open == true) {
             game->teamPoints[game->betWinner % 2] -= OPEN_MISERE_POINTS;
-            
+
         } else {
             game->teamPoints[game->betWinner % 2] -= MISERE_POINTS;
-            
+
         }
 
     } else if (game->highestBet > get_winning_tricks(game)) {
         result = "Betting team lost!\n";
-        
+
         // take away points depending on how much they bet
         // points formula from table on rules web page
-        game->teamPoints[game->betWinner % 2] -= 
+        game->teamPoints[game->betWinner % 2] -=
                 ((4 + game->suite * 2) * 10 + (game->highestBet - 6) * 100);
-        
+
     } else {
         result = "Betting team won!\n";
 
         // give points depending on how much they bet
-        game->teamPoints[game->betWinner % 2] += 
+        game->teamPoints[game->betWinner % 2] +=
                 ((4 + game->suite * 2) * 10 + (game->highestBet - 6) * 100);
 
     }
-    
+
     // give opponents 10 points for every trick they win (only if not misere)
     if (game->misere == false) {
         game->teamPoints[(game->betWinner + 1)% 2] +=
                 (NUM_ROUNDS - get_winning_tricks(game)) * 10;
-        
+
     }
-    
+
     // send the games result
     send_to_all(result, game);
     fprintf(stdout, "%s", result);
@@ -799,7 +764,7 @@ void end_round(GameInfo* game) {
     char** team = malloc(2 * BUFFER_LENGTH * sizeof(char));
     team[0] = malloc(BUFFER_LENGTH * sizeof(char));
     team[1] = malloc(BUFFER_LENGTH * sizeof(char));
-   
+
     sprintf(team[0], "%d\n", game->teamPoints[0]);
     sprintf(team[1], "%d\n", game->teamPoints[1]);
 
@@ -809,24 +774,24 @@ void end_round(GameInfo* game) {
         send_to_player(i, game, team[(i + 1) % 2]);
 
     }
-    
+
     bool over = false;
-    
+
     // check if a team has won (or lost)
     for (int i = 0; i < 2; i++) {
         if (game->teamPoints[i] >= 500) {
             // team i won
             over = true;
-            
+
         } else if (game->teamPoints[i] <= -500) {
             // team i lost lost
             over = true;
-            
+
         }
-        
+
     }
-    
-    // send message if game is ending or not 
+
+    // send message if game is ending or not
     if (over == true) {
         // game is over. exit and tell clients to exit too
         send_to_all("endgame\n", game);
@@ -837,6 +802,105 @@ void end_round(GameInfo* game) {
         send_to_all("gamenotnover\n", game);
         game->start++;
         game->start %= NUM_PLAYERS;
+
+    }
+
+}
+
+// checks if a bet is valid, and sets the new highest bet if it is,
+// returns true if it is a valid bet, false otherwise
+// note, passing and misere and handled before here
+bool valid_bet(GameInfo* game, char* msg) {
+
+    // set the new bet
+    int newBet = 0;
+    Trump newSuite = 0;
+
+    // read values for case when not 10
+    newBet = msg[0] - ASCII_NUMBER_OFFSET;
+    newSuite = return_trump(msg[1]);
+
+    // ensure length of message is correct
+    if (strlen(msg) != 3) {
+
+        // case for 10 of anything
+        if (strlen(msg) == 4 && msg[0] == '1' && msg[1] == '0') {
+            newBet = 10;
+            newSuite = return_trump(msg[2]);
+
+        } else {
+            send_to_player(game->p, game, "Invalid bet\n");
+            return false;
+
+        }
+
+    }
+
+    // make sure value and suite are valid
+    if (newBet < 6 || newBet > 10 || newSuite == -1) {
+        send_to_player(game->p, game, "Invalid bet\n");
+        return false;
+
+    }
+
+    // so the input is valid, now check if the bet is higher
+    // than the last one. higher number guarantees a higher bet.
+    if (newBet > game->highestBet || (newBet == game->highestBet &&
+            newSuite > game->suite)) {
+
+        game->highestBet = newBet;
+        game->suite = newSuite;
+
+    } else {
+        send_to_player(game->p, game, "Bet not high enough\n");
+        return false;
+
+    }
+
+    return true;
+
+}
+
+// loop until we get a valid card from the user, returns this card
+Card get_valid_card_from_player(GameInfo* game, Trump lead, int cards) {
+    while (1) {
+        // tell user to send card
+        send_to_player(game->p, game, "send\n");
+
+        // get card and check validity and remove from deck
+        Card card = return_card_from_string(get_message_from_player(game));
+        if (card.value == 0) {
+            send_to_player(game->p, game, "Not a card\n");
+            continue;
+
+        }
+
+        // handle joker here so correct_suite_player works
+        if (card.value == JOKER_VALUE && game->suite == NOTRUMPS) {
+            card.suite = game->jokerSuite;
+
+        } else if (card.value == JOKER_VALUE) {
+            card.suite = game->suite;
+
+        }
+
+        // check that the player doesn't have another card they
+        // must be playing, and check they have the card in their deck
+        if (correct_suite_player(card, game->player[game->p].deck, lead,
+                game->suite, cards) == false) {
+            send_to_player(game->p, game, "You must play lead suite\n");
+            continue;
+
+        } else if (remove_card_from_deck(card,
+                &game->player[game->p].deck, cards) == false) {
+            send_to_player(game->p, game, "You don't have that card\n");
+            continue;
+
+        } else {
+            // card is good
+            return card;
+
+        }
 
     }
 

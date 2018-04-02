@@ -32,7 +32,7 @@ Card* create_deck() {
     // shuffle
     for (int i = 42; i > 0; i--) {
         swap_cards(deck, i, rand() % (i+1));
-        
+
     }
 
     // return this deck
@@ -65,7 +65,7 @@ char* return_card(Card card) {
 
     // get card value
     if (card.value <= 9) {
-        ret[0] = card.value + 48;
+        ret[0] = card.value + ASCII_NUMBER_OFFSET;
 
     } else {
         switch (card.value) {
@@ -120,7 +120,7 @@ Card return_card_from_string(char* card) {
         return ret;
 
     }
-    
+
     // case for 10's
     if (strlen(card) == 4 && card[0] == '1' && card[1] == '0') {
         // check valid suite
@@ -133,7 +133,7 @@ Card return_card_from_string(char* card) {
         return ret;
 
     }
-    
+
     // we've got rid of all special cases, all the rest are 3 long
     if (strlen(card) != 3) {
         return ret;
@@ -143,7 +143,7 @@ Card return_card_from_string(char* card) {
     // check valid suite
     if (return_trump(card[1]) == 4 || return_trump(card[1]) == -1) {
         return ret;
-        
+
     }
 
     // check valid value
@@ -155,7 +155,7 @@ Card return_card_from_string(char* card) {
             return ret;
         }
 
-        ret.value = card[0] - 48;
+        ret.value = card[0] - ASCII_NUMBER_OFFSET;
 
     } else {
 
@@ -182,7 +182,7 @@ Card return_card_from_string(char* card) {
                 return ret;
 
         }
-        
+
     }
 
     // value and suite is valid, so set suite and return
@@ -215,16 +215,16 @@ char return_trump_char(Trump trump) {
     switch (trump) {
         case SPADES:
             return 'S';
-            
+
         case CLUBS:
             return 'C';
-            
+
         case DIAMONDS:
             return 'D';
-            
+
         case HEARTS:
             return 'H';
-            
+
         default: // No trumps
             return 'N';
 
@@ -237,19 +237,19 @@ Trump return_trump(char trump) {
     switch (trump) {
         case 'S':
             return SPADES;
-            
+
         case 'C':
             return CLUBS;
-            
+
         case 'D':
             return DIAMONDS;
-            
+
         case 'H':
             return HEARTS;
-            
+
         case 'N':
             return NOTRUMPS;
-            
+
         default: // Bad input
             return DEFAULT_SUITE;
 
@@ -281,55 +281,55 @@ bool remove_card_from_deck(Card card, Card** deck, int cards) {
 
 // sorts deck by trump, use NOTRUMPS for no suite chosen
 void sort_deck(Card** deck, int cards, Trump trump, Trump jokerSuite) {
-    
+
     // selection sort, O(n^2) is fine for these small sets
     for (int i = 0; i < cards; i++) {
-        
+
         // index of highest card
         int max = i;
         Card maxCard = (*deck)[max];
-        
-        // handle bowers if we need to 
+
+        // handle bowers if we need to
         if (trump != NOTRUMPS) {
             maxCard = handle_bower(maxCard, trump);
-            
+
         }
-        
+
         // loop until we have the highest card
         for (int j = i; j < cards; j++) {
-            
+
             Card card = (*deck)[j];
-            
-            // handle bowers if we need to 
+
+            // handle bowers if we need to
             if (trump != NOTRUMPS) {
                 card = handle_bower(card, trump);
-                
+
             }
-            
+
             // make sure joker is in the right place
             if (card.value == JOKER_VALUE) {
-                
+
                 // if we're in NOTRUMPS, handle joker differently
                 if (trump == NOTRUMPS) {
-                    
+
                     // if trump is notrumps then joker suite is also no trumps
                     // so this works even if suite not chosen
-                    card.suite = jokerSuite;             
+                    card.suite = jokerSuite;
 
                 } else {
                     // we are in a valid suite, set joker to be this suite
                     card.suite = trump;
-                    
+
                 }
-                
+
             }
-            
+
             // this will sort it fine if we are hearts or no trumps,
             // but we want the trump suite to be sorted to the front
             if (card.suite == trump) {
                 // give the card a higher suite than the other trumps!
                 card.suite = NOTRUMPS;
-                
+
             }
 
             // we did the case i == j to ensure joker is passed on first loop
@@ -337,28 +337,28 @@ void sort_deck(Card** deck, int cards, Trump trump, Trump jokerSuite) {
             if (i == j) {
                 maxCard = card;
                 continue;
-                
+
             }
-            
+
             // compare card to the max index, update max if card is higher
             if (card.suite > maxCard.suite) {
                 max = j;
                 maxCard = card;
-                
+
             } else if ((card.suite == maxCard.suite) &&
                     (card.value > maxCard.value)) {
                 max = j;
                 maxCard = card;
-                
+
             }
-            
+
         }
-        
+
         // swap card at max with card at i
         swap_cards(*deck, i, max);
-        
+
     }
-    
+
 }
 
 // returns true if deck has the joker, false otherwise.
@@ -372,57 +372,6 @@ bool deck_has_joker(Card* deck) {
     }
 
     return false;
-
-}
-
-// checks if a bet is valid, and sets the new highest bet if it is,
-// returns true if it is a valid bet, false otherwise
-// note passing and misere and handled before here
-bool valid_bet(int* highestBet, int* suite, char* msg) {
-
-    // set the new bet
-    int newBet = 0;
-    Trump newSuite = 0;
-
-    // read values for case when not 10
-    newBet = msg[0] - 48;
-    newSuite = return_trump(msg[1]);
-
-    // ensure length of message is correct
-    if (strlen(msg) != 3) {
-
-        // case for 10 of anything
-        if (strlen(msg) == 4 && msg[0] == '1' && msg[1] == '0') {
-            newBet = 10;
-            newSuite = return_trump(msg[2]);
-
-        } else {
-            return false;
-
-        }
-
-    }
-
-    // make sure value and suite are valid
-    if (newBet < 6 || newBet > 10 || newSuite == -1) {
-        return false;
-        
-    }
-
-    // so the input is valid, now check if the bet is higher
-    // than the last one. higher number guarantees a higher bet.
-    if (newBet > *highestBet || (newBet == *highestBet &&
-            newSuite > *suite)) {
-
-        *highestBet = newBet;
-        *suite = newSuite;
-
-    } else {
-        return false;
-
-    }
-
-    return true;
 
 }
 
