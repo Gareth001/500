@@ -9,18 +9,17 @@
 
 
 ## Installation
-Requires at least gcc and make.
-1. Download zip (or tar.gz) of source through github, under releases (or download latest zip from this page)
-2. Extract and change directory
-3. Compile with make
+Requires at least `gcc` and `make`.
+1. Clone the repository with git clone `https://github.com/Gareth001/500.git`
+3. Compile with `make`
 
 ## Running
-Server: ./server port password
+Server: `./server port password`
 
-Client: ./client ipaddress port password username
+Client: `./client ipaddress port password username`
 
 ## Input
-Suites and Trumps are represented with the starting character of each trump, so **S**pades, **C**lubs, **D**iamonds, **H**earts, **N**o trumps in order from lowest to highest. 
+Suites and Trumps are represented with the starting character of each trump, so **S**pades, **C**lubs, **D**iamonds, **H**earts, **N**o trumps in order from lowest to highest.
 When betting, send a number between 6 and 10 followed by a character representing the trump. E.g. 7 No trumps is bet by sending 7N. Misere is bet by sending **MISERE** when the current bet is 7. Open Misere is bet by **OPENMISERE**, and can be bet any time.
 
 Passing is done by **PASS**, betting finishes when all players pass (including the winner).

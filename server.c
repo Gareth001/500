@@ -362,7 +362,7 @@ void bet_round(GameInfo* game) {
 
             } else if (strcmp(msg, "MISERE\n") == 0) { // misere
                 // check misere conditions are met, must be 7 exactly
-                if (game->highestBet == 7) {
+                if (game->highestBet == 7 && game->misere == false) {
                     // it's valid. set bet to be equal to 7 no trumps,
                     // that way any 8 can beat this bet
                     game->highestBet = 7;
@@ -370,6 +370,10 @@ void bet_round(GameInfo* game) {
                     game->misere = true;
                     sprintf(send, "Player %d bet misere\n", game->p);
                     break;
+
+                } else if (game->misere == true) {
+                    send_to_player(game->p, game,
+                            "Player has already bet misere\n");
 
                 } else {
                     send_to_player(game->p, game,
@@ -379,8 +383,8 @@ void bet_round(GameInfo* game) {
 
             } else if (strcmp(msg, "OPENMISERE\n") == 0) { // open misere
                 // check misere conditions are met, must be <= 10D
-                if (game->highestBet < 10 || (game->highestBet == 10 &&
-                        game->suite <= DIAMONDS)) {
+                if ((game->highestBet < 10 || (game->highestBet == 10 &&
+                        game->suite <= DIAMONDS)) && game->open == false) {
                     // it's valid. set bet to be equal to 10 diamonds,
                     // that way 10H or higher can beat it
                     game->highestBet = 10;
@@ -389,6 +393,10 @@ void bet_round(GameInfo* game) {
                     game->open = true;
                     sprintf(send, "Player %d bet open misere\n", game->p);
                     break;
+
+                } else if (game->open == true) {
+                    send_to_player(game->p, game,
+                            "Player has already bet open misere\n");
 
                 } else {
                     send_to_player(game->p, game, "Bet not high enough\n");
