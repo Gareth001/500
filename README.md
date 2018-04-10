@@ -10,7 +10,7 @@
 
 ## Installation
 Requires at least `gcc` and `make`.
-1. Clone the repository with git clone `https://github.com/Gareth001/500.git`
+1. Clone the repository with `git clone https://github.com/Gareth001/500.git`
 3. Compile with `make`
 
 ## Running
