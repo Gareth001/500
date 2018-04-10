@@ -10,13 +10,13 @@
 
 ## Installation
 Requires at least `gcc` and `make`.
-1. Clone the repository with `git clone https://github.com/Gareth001/500.git`
-3. Compile with `make`
+1. Clone the repository with `$ git clone https://github.com/Gareth001/500.git`
+3. Compile in 500 directory with `$ make`
 
 ## Running
-Server: `./server port password`
+Server: `$ ./server port password`
 
-Client: `./client ipaddress port password username`
+Client: `$ ./client ipaddress port password username`
 
 ## Input
 Suites and Trumps are represented with the starting character of each trump, so **S**pades, **C**lubs, **D**iamonds, **H**earts, **N**o trumps in order from lowest to highest.
