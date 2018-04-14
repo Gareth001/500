@@ -17,6 +17,7 @@
 // 3: Invalid port
 // 4: Failed listen
 // 5: Unexpected exit
+// 6: Bad playertypes string
 
 // stores player info
 typedef struct Player {
@@ -26,6 +27,7 @@ typedef struct Player {
     int fd;
     bool hasPassed;
     int wins; // number of tricks this player has won
+    int bot; // 0 if human
 
 } Player;
 
@@ -50,6 +52,7 @@ typedef struct GameInfo {
     int p; // current player selected
 
     char* password;
+    char* playerTypes; // string of playertypes
     unsigned int timeout; // currently unimplemented
     int fd; // file descriptor of server
 
@@ -66,6 +69,7 @@ void send_deck_to_all(int cards, GameInfo* game);
 void send_to_player(int player, GameInfo* game, char* message);
 
 // responses from user
+char* get_valid_bet_from_player(GameInfo* game, int* pPassed);
 char* get_message_from_player(GameInfo* game);
 Card get_valid_card_from_player(GameInfo* game, Trump lead, int cards);
 bool valid_bet(GameInfo* game, char* msg);
@@ -86,15 +90,17 @@ void end_round(GameInfo* game);
 int main(int argc, char** argv) {
 
     // check arg count
-    if (argc != 3) {
-        fprintf(stderr, "Usage: server port password\n");
+    if (argc != 3 && argc != 4) {
+        fprintf(stderr, "Usage: server port password [playertypes]\n");
         return 1;
-    }
+        
+    } 
 
     // check valid password (correct length)
     if (strlen(argv[2]) > MAX_PASS_LENGTH) {
         fprintf(stderr, "password too long\n");
         return 2;
+        
     }
 
     int port = atoi(argv[1]); // read port
@@ -104,6 +110,34 @@ int main(int argc, char** argv) {
             !check_input_digits(port, argv[1])) {
         fprintf(stderr, "Bad port\n");
         return 3;
+        
+    }
+    
+    // case for playertypes given
+    if (argc == 4) {
+        
+        // ensure string has 4 characters in length
+        if (strlen(argv[3]) != 4) {
+            fprintf(stderr, "Bad playertypes string\n");
+            return 6;
+            
+        }
+        
+        // check string is valid. each char is more than ASCII_NUMBER_OFFSET 
+        // and less than BOT_MAX_DIFFICULTY + ASCII_NUMBER_OFFSET
+        int BOT_MAX_DIFFICULTY = 1; // default
+        for (int i = 0; i < 4; i++) {
+            
+            if (argv[3][i] < ASCII_NUMBER_OFFSET || 
+                    argv[3][i] > ASCII_NUMBER_OFFSET + BOT_MAX_DIFFICULTY) {
+                
+                fprintf(stderr, "Bad playertypes string\n");
+                return 6;
+            
+            }
+            
+        }
+        
     }
 
     // attempt to listen (exits here if fail) and save the fd if successful
@@ -117,7 +151,16 @@ int main(int argc, char** argv) {
     game.start = 0;
     game.player = malloc(NUM_PLAYERS * sizeof(Player));
     game.teamPoints = malloc(2 * sizeof(Player));
-
+    
+    // get playertypes string
+    if (argc == 4) {
+        game.playerTypes = argv[3];
+        
+    } else {
+        game.playerTypes = "0000"; // default, all players
+        
+    }
+    
     // process connections
     process_connections(&game);
 
@@ -125,12 +168,12 @@ int main(int argc, char** argv) {
 
 // main game loop
 void game_loop(GameInfo* game) {
+    srand(time(NULL)); // random seed
 
     // loop until game exits (from end_round function or bad read)
     while (1) {
         // shuffle and deal
         fprintf(stdout, "Shuffling and Dealing\n");
-        srand(time(NULL)); // random seed
         game->kitty = deal_cards(game); // kitty and dealing, debug info too
 
         // betting round
@@ -165,6 +208,22 @@ void process_connections(GameInfo* game) {
 
     // loop until we have 4 players waiting to start a game
     while (game->p != NUM_PLAYERS) {
+        
+        // check if bot or not
+        if (game->playerTypes[game->p] != '0') {
+            
+            // server message
+            fprintf(stdout, "Player %d connected (bot)\n", game->p);
+
+            // add bot stats
+            game->player[game->p].name = "bot";
+            game->player[game->p].fd = fileDes;
+            game->player[game->p].bot = game->playerTypes[game->p] -
+                    ASCII_NUMBER_OFFSET;
+            game->p++;
+            continue;
+            
+        }
 
         fromAddrSize = sizeof(struct sockaddr_in);
         // block, waiting for a new connection (fromAddr will be populated
@@ -207,6 +266,7 @@ void process_connections(GameInfo* game) {
         // add name
         game->player[game->p].name = strdup(userBuffer);
         game->player[game->p].fd = fileDes;
+        game->player[game->p].bot = 0;
         game->p++;
 
     }
@@ -217,6 +277,12 @@ void process_connections(GameInfo* game) {
     // we want a yes from all players to ensure they are still here
     for (int i = 0; i < NUM_PLAYERS; i++) {
 
+        // bot is always here
+        if (game->player[i].bot != 0) {
+            continue;
+            
+        }
+    
         // read 4 characters, just make sure that it works
         if (read(game->player[i].fd, malloc(4 * sizeof(char)), 4) <= 0) {
 
@@ -246,7 +312,14 @@ void process_connections(GameInfo* game) {
 void send_player_details(GameInfo* game) {
     // send all players the player details.
     for (int i = 0; i < NUM_PLAYERS; i++) {
+        
+        if (game->player[i].bot != 0) {
+            continue;
+            
+        }
+        
         for (int j = 0; j < NUM_PLAYERS; j++) {
+            
             // string that tells the user if the player is them or a teammate
             char* str = "";
             if (i == j) {
@@ -257,10 +330,17 @@ void send_player_details(GameInfo* game) {
 
             }
 
-            // send this users info to the player
+            // print message, note special string for bots
             char* message = malloc(BUFFER_LENGTH * sizeof(char));
-            sprintf(message, "Player %d, '%s'%s\n", j,
-                    game->player[j].name, str);
+            if (game->player[j].bot == 0) {
+                sprintf(message, "Player %d, '%s'%s\n", j,
+                        game->player[j].name, str);
+
+            } else {
+                sprintf(message, "Player %d, (bot)%s\n", j, str);
+                
+            }
+            
             send_to_player(i, game, message);
 
             // await confirmation from user
@@ -339,84 +419,10 @@ void bet_round(GameInfo* game) {
 
     // loop until NUM_PLAYERS have passed
     for (int pPassed = 0; pPassed != NUM_PLAYERS; ) {
-
-        // this players bet in string form
-        char* send = malloc(BUFFER_LENGTH * sizeof(char));
-
-        // loop until we get a valid bet
-        while (game->player[game->p].hasPassed == false) {
-
-            // send message to player
-            send_to_player(game->p, game, "bet\n");
-
-            // get bet from player 0
-            char* msg = get_message_from_player(game);
-
-            // check if it's a pass
-            if (strcmp(msg, "PASS\n") == 0) {
-                // set passed to true, change send msg
-                game->player[game->p].hasPassed = true;
-                sprintf(send, "Player %d passed\n", game->p);
-                pPassed++;
-                break;
-
-            } else if (strcmp(msg, "MISERE\n") == 0) { // misere
-                // check misere conditions are met, must be 7 exactly
-                if (game->highestBet == 7 && game->misere == false) {
-                    // it's valid. set bet to be equal to 7 no trumps,
-                    // that way any 8 can beat this bet
-                    game->highestBet = 7;
-                    game->suite = NOTRUMPS;
-                    game->misere = true;
-                    sprintf(send, "Player %d bet misere\n", game->p);
-                    break;
-
-                } else if (game->misere == true) {
-                    send_to_player(game->p, game,
-                            "Player has already bet misere\n");
-
-                } else {
-                    send_to_player(game->p, game,
-                            "Bet must be exactly 7 to bet misere\n");
-
-                }
-
-            } else if (strcmp(msg, "OPENMISERE\n") == 0) { // open misere
-                // check misere conditions are met, must be <= 10D
-                if ((game->highestBet < 10 || (game->highestBet == 10 &&
-                        game->suite <= DIAMONDS)) && game->open == false) {
-                    // it's valid. set bet to be equal to 10 diamonds,
-                    // that way 10H or higher can beat it
-                    game->highestBet = 10;
-                    game->suite = DIAMONDS;
-                    game->misere = true;
-                    game->open = true;
-                    sprintf(send, "Player %d bet open misere\n", game->p);
-                    break;
-
-                } else if (game->open == true) {
-                    send_to_player(game->p, game,
-                            "Player has already bet open misere\n");
-
-                } else {
-                    send_to_player(game->p, game, "Bet not high enough\n");
-
-                }
-
-            } else if (valid_bet(game, msg) == true) {
-                // update string
-                sprintf(send, "Player %d bet %d%c\n", game->p, game->highestBet,
-                        return_trump_char(game->suite));
-                game->misere = false;
-                game->open = false;
-                break;
-
-            }
-
-            // error message is sent in valid_bet method
-
-        }
-
+        
+        // get bet from player (or bot)
+        char* send = get_valid_bet_from_player(game, &pPassed);
+      
         // send the bet to everyone
         fprintf(stdout, "%s", send);
         send_to_all(send, game);
@@ -648,7 +654,7 @@ void play_round(GameInfo* game) {
 
             }
 
-            // current card
+            // current card from player (or bot)
             Card card = get_valid_card_from_player(game, lead,
                     NUM_ROUNDS - rounds);
 
@@ -869,6 +875,92 @@ bool valid_bet(GameInfo* game, char* msg) {
 
 }
 
+
+// loop until we get a valid bet from the user, returns string of this bet
+char* get_valid_bet_from_player(GameInfo* game, int* pPassed) {
+    char* send = malloc(BUFFER_LENGTH * sizeof(char));
+
+    // loop until we get a valid bet
+    while (game->player[game->p].hasPassed == false) {
+
+        // send message to player
+        send_to_player(game->p, game, "bet\n");
+
+        // bet string
+        char* msg;
+        
+        // get bet from player (check if bot here)
+        msg = get_message_from_player(game);
+
+        // check if it's a pass
+        if (strcmp(msg, "PASS\n") == 0) {
+            // set passed to true, change send msg
+            game->player[game->p].hasPassed = true;
+            sprintf(send, "Player %d passed\n", game->p);
+            (*pPassed)++;
+            break;
+
+        } else if (strcmp(msg, "MISERE\n") == 0) { // misere
+            // check misere conditions are met, must be 7 exactly
+            if (game->highestBet == 7 && game->misere == false) {
+                // it's valid. set bet to be equal to 7 no trumps,
+                // that way any 8 can beat this bet
+                game->highestBet = 7;
+                game->suite = NOTRUMPS;
+                game->misere = true;
+                sprintf(send, "Player %d bet misere\n", game->p);
+                break;
+
+            } else if (game->misere == true) {
+                send_to_player(game->p, game,
+                        "Player has already bet misere\n");
+
+            } else {
+                send_to_player(game->p, game,
+                        "Bet must be exactly 7 to bet misere\n");
+
+            }
+
+        } else if (strcmp(msg, "OPENMISERE\n") == 0) { // open misere
+            // check misere conditions are met, must be <= 10D
+            if ((game->highestBet < 10 || (game->highestBet == 10 &&
+                    game->suite <= DIAMONDS)) && game->open == false) {
+                // it's valid. set bet to be equal to 10 diamonds,
+                // that way 10H or higher can beat it
+                game->highestBet = 10;
+                game->suite = DIAMONDS;
+                game->misere = true;
+                game->open = true;
+                sprintf(send, "Player %d bet open misere\n", game->p);
+                break;
+
+            } else if (game->open == true) {
+                send_to_player(game->p, game,
+                        "Player has already bet open misere\n");
+
+            } else {
+                send_to_player(game->p, game, "Bet not high enough\n");
+
+            }
+
+        } else if (valid_bet(game, msg) == true) {
+            // update string
+            sprintf(send, "Player %d bet %d%c\n", game->p, game->highestBet,
+                    return_trump_char(game->suite));
+            game->misere = false;
+            game->open = false;
+            break;
+
+        }
+
+        // error message is sent in valid_bet method
+
+    }
+    
+    return send;
+
+}
+
 // loop until we get a valid card from the user, returns this card
 Card get_valid_card_from_player(GameInfo* game, Trump lead, int cards) {
     while (1) {
@@ -953,7 +1045,10 @@ int check_valid_username(char* user, GameInfo* game) {
 
 // sends the given message to the specified player
 void send_to_player(int player, GameInfo* game, char* message) {
-    write(game->player[player].fd, message, strlen(message));
+    if (game->player[player].bot == 0) {
+        write(game->player[player].fd, message, strlen(message));
+        
+    }
 
 }
 
@@ -968,10 +1063,11 @@ void send_to_all(char* message, GameInfo* game) {
 // to fd's that have been closed after a failed read
 void send_to_all_except(char* message, GameInfo* game, int except) {
     for (int i = 0; i < NUM_PLAYERS; i++) {
-        if (i != except) {
+        if (game->player[i].bot == 0 && i != except) {
             send_to_player(i, game, message);
 
         }
+        
     }
 
 }
