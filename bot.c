@@ -25,7 +25,7 @@ void get_kitty_from_bot(GameInfo* game) {
 void get_joker_suit_from_bot(GameInfo* game) {
     
     // spades by default 
-    game->jokerSuite = SPADES;
+    game->jokerSuit = SPADES;
     
 }
 
@@ -54,7 +54,7 @@ Card get_card_from_bot(GameInfo* game, Trump lead, int cards) {
             // handle joker here so correct_suit_player works
             if (game->suit == NOTRUMPS) {
                 
-                deckSplit[game->jokerSuite][suitCount[game->jokerSuite]++] =
+                deckSplit[game->jokerSuit][suitCount[game->jokerSuit]++] =
                         game->player[game->p].deck[k];
                 
             } else {
@@ -77,7 +77,7 @@ Card get_card_from_bot(GameInfo* game, Trump lead, int cards) {
     Card card;
     
     // choosing a card
-    if (lead == DEFAULT_SUITE) {
+    if (lead == DEFAULT_Suit) {
         
         // we are leading
         // leading with our first card of a suit
@@ -122,7 +122,7 @@ Card get_card_from_bot(GameInfo* game, Trump lead, int cards) {
     
     // change joker suite in no trumps
     if (card.value == JOKER_VALUE && game->suit == NOTRUMPS) {
-        card.suit = game->jokerSuite;
+        card.suit = game->jokerSuit;
 
     } else if (card.value == JOKER_VALUE) {
         card.suit = game->suit;

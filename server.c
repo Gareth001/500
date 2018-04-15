@@ -507,7 +507,7 @@ void kitty_round(GameInfo* game) {
 
 // handles choosing the joker suit, if it is no trumps
 void joker_round(GameInfo* game) {
-    game->jokerSuite = DEFAULT_SUITE; // default joker suit
+    game->jokerSuit = DEFAULT_Suit; // default joker suit
 
     // choose joker suit round
     if (game->suit == NOTRUMPS) {
@@ -543,10 +543,10 @@ void joker_round(GameInfo* game) {
                 }
 
                 // check suit valid
-                if (return_trump(msg[0]) != DEFAULT_SUITE &&
+                if (return_trump(msg[0]) != DEFAULT_Suit &&
                         return_trump(msg[0]) != NOTRUMPS) {
                     // set the jokers suit in the game, and we're done
-                    game->jokerSuite = return_trump(msg[0]);
+                    game->jokerSuit = return_trump(msg[0]);
                     break;
 
                 }
@@ -565,11 +565,11 @@ void joker_round(GameInfo* game) {
     }
 
     // send joker suit if it was chosen
-    if (game->jokerSuite != DEFAULT_SUITE) {
+    if (game->jokerSuit != DEFAULT_Suit) {
         // prepare string
         char* send = malloc(BUFFER_LENGTH * sizeof(char));
         sprintf(send, "Joker suit chosen. It is a %c\n",
-                return_trump_char(game->jokerSuite));
+                return_trump_char(game->jokerSuit));
         send_to_all(send, game);
         fprintf(stdout, "%s", send);
 
@@ -593,7 +593,7 @@ void play_round(GameInfo* game) {
         // sort each players deck
         for (int i = 0; i < NUM_PLAYERS; i++) {
             sort_deck(&game->player[i].deck, NUM_ROUNDS - rounds,
-                    game->suit, game->jokerSuite);
+                    game->suit, game->jokerSuit);
 
         }
 
@@ -622,7 +622,7 @@ void play_round(GameInfo* game) {
         winner.suit = 0;
 
         // leading trump
-        Trump lead = DEFAULT_SUITE;
+        Trump lead = DEFAULT_Suit;
 
         // Winning player of this round
         int win = game->p;
@@ -815,11 +815,11 @@ bool valid_bet(GameInfo* game, char* msg) {
 
     // set the new bet
     int newBet = 0;
-    Trump newSuite = 0;
+    Trump newSuit = 0;
 
     // read values for case when not 10
     newBet = msg[0] - ASCII_NUMBER_OFFSET;
-    newSuite = return_trump(msg[1]);
+    newSuit = return_trump(msg[1]);
 
     // ensure length of message is correct
     if (strlen(msg) != 3) {
@@ -827,7 +827,7 @@ bool valid_bet(GameInfo* game, char* msg) {
         // case for 10 of anything
         if (strlen(msg) == 4 && msg[0] == '1' && msg[1] == '0') {
             newBet = 10;
-            newSuite = return_trump(msg[2]);
+            newSuit = return_trump(msg[2]);
 
         } else {
             send_to_player(game->p, game, "Invalid bet\n");
@@ -838,7 +838,7 @@ bool valid_bet(GameInfo* game, char* msg) {
     }
 
     // make sure value and suit are valid
-    if (newBet < 6 || newBet > 10 || newSuite == -1) {
+    if (newBet < 6 || newBet > 10 || newSuit == -1) {
         send_to_player(game->p, game, "Invalid bet\n");
         return false;
 
@@ -847,10 +847,10 @@ bool valid_bet(GameInfo* game, char* msg) {
     // so the input is valid, now check if the bet is higher
     // than the last one. higher number guarantees a higher bet.
     if (newBet > game->highestBet || (newBet == game->highestBet &&
-            newSuite > game->suit)) {
+            newSuit > game->suit)) {
 
         game->highestBet = newBet;
-        game->suit = newSuite;
+        game->suit = newSuit;
 
     } else {
         send_to_player(game->p, game, "Bet not high enough\n");
@@ -993,7 +993,7 @@ Card get_valid_card_from_player(GameInfo* game, Trump lead, int cards) {
 
         // handle joker here so correct_suit_player works
         if (card.value == JOKER_VALUE && game->suit == NOTRUMPS) {
-            card.suit = game->jokerSuite;
+            card.suit = game->jokerSuit;
 
         } else if (card.value == JOKER_VALUE) {
             card.suit = game->suit;

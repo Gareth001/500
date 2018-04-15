@@ -25,7 +25,7 @@ typedef struct GameInfo {
     int highestBet; // highest bet number
     Trump suit; // highest bet suit
     int betWinner; // person who won the betting round (and did the kitty)
-    Trump jokerSuite; // suit of the joker for no trumps
+    Trump jokerSuit; // suit of the joker for no trumps
     bool misere; // true if misere
     bool open; // true if open misere
 

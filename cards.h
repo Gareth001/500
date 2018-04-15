@@ -19,7 +19,7 @@
 #define DIAMONDS 2
 #define HEARTS 3
 #define NOTRUMPS 4
-#define DEFAULT_SUITE -1
+#define DEFAULT_Suit -1
 
 // points for winning various bets
 #define OPEN_MISERE_POINTS 500
@@ -33,7 +33,7 @@
 // the trump in the case of a normal game and the chosen suit if no trumps is
 // chosen.
 
-// Suite is the same as Trump below except that the Trump of a card cannot be
+// Suit is the same as Trump below except that the Trump of a card cannot be
 // no trumps.
 
 // card struct, contains the suit
@@ -93,6 +93,6 @@ bool correct_suit_player(Card card, Card* deck, Trump lead, Trump trump,
 void swap_cards(Card* deck, int origpos, int newpos);
 
 // sorts deck by trump, use NOTRUMPS for no suit chosen
-void sort_deck(Card** deck, int cards, Trump trump, Trump jokerSuite);
+void sort_deck(Card** deck, int cards, Trump trump, Trump jokerSuit);
 
 #endif /* CARDS_H */

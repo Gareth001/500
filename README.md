@@ -19,7 +19,7 @@ Server: `$ ./server port password`
 Client: `$ ./client ipaddress port password username`
 
 ## Input
-Suites and Trumps are represented with the starting character of each trump, so **S**pades, **C**lubs, **D**iamonds, **H**earts, **N**o trumps in order from lowest to highest.
+Suits and Trumps are represented with the starting character of each trump, so **S**pades, **C**lubs, **D**iamonds, **H**earts, **N**o trumps in order from lowest to highest.
 When betting, send a number between 6 and 10 followed by a character representing the trump. E.g. 7 No trumps is bet by sending 7N. Misere is bet by sending **MISERE** when the current bet is 7. Open Misere is bet by **OPENMISERE**, and can be bet any time.
 
 Passing is done by **PASS**, betting finishes when all players pass (including the winner).
@@ -27,7 +27,7 @@ Passing is done by **PASS**, betting finishes when all players pass (including t
 When choosing the joker suit if you won with a no trumps bet, send a single character representing the suit of the card.
 
 Number cards are represented by their numerical value followed by the suit of the card. E.g. 8 of Spades is 8S.
-Picture cards are represented by the starting character of the rank (**J**ack, **Q**ueen, **K**ing, **A**ce) followd by the suit, e.g. Ace of Spaces is AS.
+Picture cards are represented by the starting character of the rank (**J**ack, **Q**ueen, **K**ing, **A**ce) followed by the suit, e.g. Ace of Spaces is AS.
 Joker is represented by JOKER.
 For the kitty and play rounds, just send a card by typing the card exactly as it appears in your deck.
 

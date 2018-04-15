@@ -251,7 +251,7 @@ Trump return_trump(char trump) {
             return NOTRUMPS;
 
         default: // Bad input
-            return DEFAULT_SUITE;
+            return DEFAULT_Suit;
 
     }
 
@@ -280,7 +280,7 @@ bool remove_card_from_deck(Card card, Card** deck, int cards) {
 }
 
 // sorts deck by trump, use NOTRUMPS for no suit chosen
-void sort_deck(Card** deck, int cards, Trump trump, Trump jokerSuite) {
+void sort_deck(Card** deck, int cards, Trump trump, Trump jokerSuit) {
 
     // selection sort, O(n^2) is fine for these small sets
     for (int i = 0; i < cards; i++) {
@@ -314,7 +314,7 @@ void sort_deck(Card** deck, int cards, Trump trump, Trump jokerSuite) {
 
                     // if trump is notrumps then joker suit is also no trumps
                     // so this works even if suit not chosen
-                    card.suit = jokerSuite;
+                    card.suit = jokerSuit;
 
                 } else {
                     // we are in a valid suit, set joker to be this suit
