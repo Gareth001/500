@@ -4,8 +4,8 @@
 #include <time.h>
 
 // header files
-#include "shared.h"
-#include "cards.h"
+// bot.h -> server.h -> cards.h -> shared.h
+#include "bot.h"
 
 // server specific defines
 #define NUM_ROUNDS 10
@@ -18,45 +18,6 @@
 // 4: Failed listen
 // 5: Unexpected exit
 // 6: Bad playertypes string
-
-// stores player info
-typedef struct Player {
-
-    Card* deck; // players hand
-    char* name;
-    int fd;
-    bool hasPassed;
-    int wins; // number of tricks this player has won
-    int bot; // 0 if human
-
-} Player;
-
-// stores game info
-typedef struct GameInfo {
-
-    // player and card array
-    Player* player;
-    Card* kitty;
-
-    int highestBet; // highest bet number
-    Trump suite; // highest bet suite
-    int betWinner; // person who won the betting round (and did the kitty)
-    Trump jokerSuite; // suite of the joker for no trumps
-    bool misere; // true if misere
-    bool open; // true if open misere
-
-    int* teamPoints; // points for each team, index 0 is player 0's team,
-    // 1 is player 1's team
-
-    int start; // betting player
-    int p; // current player selected
-
-    char* password;
-    char* playerTypes; // string of playertypes
-    unsigned int timeout; // currently unimplemented
-    int fd; // file descriptor of server
-
-} GameInfo;
 
 // server
 int open_listen(int port); // returns fd for listening
@@ -125,7 +86,6 @@ int main(int argc, char** argv) {
         
         // check string is valid. each char is more than ASCII_NUMBER_OFFSET 
         // and less than BOT_MAX_DIFFICULTY + ASCII_NUMBER_OFFSET
-        int BOT_MAX_DIFFICULTY = 1; // default
         for (int i = 0; i < 4; i++) {
             
             if (argv[3][i] < ASCII_NUMBER_OFFSET || 
@@ -186,7 +146,7 @@ void game_loop(GameInfo* game) {
         kitty_round(game);
         fprintf(stdout, "Kitty finished\n");
 
-        // joker suite round. note this only occurs if there are no trumps.
+        // joker suit round. note this only occurs if there are no trumps.
         joker_round(game);
 
         // play round
@@ -212,14 +172,16 @@ void process_connections(GameInfo* game) {
         // check if bot or not
         if (game->playerTypes[game->p] != '0') {
             
-            // server message
-            fprintf(stdout, "Player %d connected (bot)\n", game->p);
-
             // add bot stats
             game->player[game->p].name = "bot";
             game->player[game->p].fd = fileDes;
             game->player[game->p].bot = game->playerTypes[game->p] -
                     ASCII_NUMBER_OFFSET;
+                    
+            // server message
+            fprintf(stdout, "Player %d connected (lvl %d bot)\n", game->p, 
+                    game->player[game->p].bot);
+
             game->p++;
             continue;
             
@@ -337,7 +299,8 @@ void send_player_details(GameInfo* game) {
                         game->player[j].name, str);
 
             } else {
-                sprintf(message, "Player %d, (bot)%s\n", j, str);
+                sprintf(message, "Player %d, (lvl %d bot)%s\n", j, 
+                        game->player[j].bot, str);
                 
             }
             
@@ -349,6 +312,7 @@ void send_player_details(GameInfo* game) {
         }
 
     }
+    
 }
 
 // deals cards to the players decks. returns the kitty
@@ -395,7 +359,7 @@ Card* deal_cards(GameInfo* game) {
 
     }
 
-    // sort each deck by suite here!
+    // sort each deck by suit here!
     for (int i = 0; i < NUM_PLAYERS; i++) {
         sort_deck(&game->player[i].deck, NUM_ROUNDS, NOTRUMPS, NOTRUMPS);
 
@@ -411,7 +375,7 @@ Card* deal_cards(GameInfo* game) {
 void bet_round(GameInfo* game) {
     // set highest bet info
     game->highestBet = 0;
-    game->suite = 0;
+    game->suit = 0;
     game->betWinner = 0;
     game->p = game->start; // reset player counter (to starting better)
     game->misere = false;
@@ -420,12 +384,16 @@ void bet_round(GameInfo* game) {
     // loop until NUM_PLAYERS have passed
     for (int pPassed = 0; pPassed != NUM_PLAYERS; ) {
         
-        // get bet from player (or bot)
-        char* send = get_valid_bet_from_player(game, &pPassed);
+        // get bet from player (or bot) if no pass yet
+        if (game->player[game->p].hasPassed == false) {
+            char* send = get_valid_bet_from_player(game, &pPassed);
+            
+            // send the bet to everyone
+            fprintf(stdout, "%s", send);
+            send_to_all(send, game);
+
+        }
       
-        // send the bet to everyone
-        fprintf(stdout, "%s", send);
-        send_to_all(send, game);
 
         // increase current player counter
         game->p++;
@@ -453,14 +421,14 @@ void bet_round(GameInfo* game) {
     char* msg = malloc(BUFFER_LENGTH * sizeof(char));
     if (game->open == true) {
         sprintf(msg, "Player %d won the bet with open misere!\n", game->p);
-        game->suite = NOTRUMPS; // set suite of gameplay to no trumps
+        game->suit = NOTRUMPS; // set suit of gameplay to no trumps
 
     } else if (game->misere == true) {
         sprintf(msg, "Player %d won the bet with misere!\n", game->p);
 
     } else {
         sprintf(msg, "Player %d won the bet with %d%c!\n", game->p,
-                game->highestBet, return_trump_char(game->suite));
+                game->highestBet, return_trump_char(game->suit));
 
     }
 
@@ -480,9 +448,9 @@ void kitty_round(GameInfo* game) {
 
     }
 
-    // sort the deck by suite here!
+    // sort the deck by suit here!
     sort_deck(&game->player[game->betWinner].deck, NUM_ROUNDS + 3,
-            game->suite, NOTRUMPS);
+            game->suit, NOTRUMPS);
 
     // prepare string to send to the winner and send it
     char* msg = malloc(BUFFER_LENGTH * sizeof(char));
@@ -490,36 +458,46 @@ void kitty_round(GameInfo* game) {
             return_hand(game->player[game->p].deck, NUM_ROUNDS + 3));
     send_to_player(game->p, game, msg);
 
-    // receive 3 cards the user wants to discard
-    for (int c = 0; c != 3; ) {
-        // ask for some input
-        send_to_player(game->p, game, "send\n");
+    // get rid of the extra 3 cards
+    if (game->player[game->p].bot == 0) {
+    
+        // receive 3 cards the user wants to discard
+        for (int c = 0; c != 3; ) {
+            // ask for some input
+            send_to_player(game->p, game, "send\n");
 
-        // send user a string of how many cards we still need
-        char* message = malloc(BUFFER_LENGTH * sizeof(char));
-        sprintf(message, "Pick %d more card(s)\n", 3 - c);
-        send_to_player(game->p, game, message);
+            // send user a string of how many cards we still need
+            char* message = malloc(BUFFER_LENGTH * sizeof(char));
+            sprintf(message, "Pick %d more card(s)\n", 3 - c);
+            send_to_player(game->p, game, message);
 
-        // get card, and check if valid then remove it from the players deck
-        Card card = return_card_from_string(get_message_from_player(game));
+            // get card, and check if valid then remove it from the players deck
+            Card card = return_card_from_string(get_message_from_player(game));
 
-        // check if the card was valid
-        if (card.value == 0) {
-            send_to_player(game->p, game, "Not a card\n");
-            continue;
+            // check if the card was valid
+            if (card.value == 0) {
+                send_to_player(game->p, game, "Not a card\n");
+                continue;
 
-        } else if (remove_card_from_deck(card,
-                &game->player[game->p].deck, NUM_ROUNDS + 3 - c) == false) {
-            // try and remove the card from the deck
-            send_to_player(game->p, game, "You don't have that card\n");
-            continue;
+            } else if (remove_card_from_deck(card,
+                    &game->player[game->p].deck, NUM_ROUNDS + 3 - c) == false) {
+                // try and remove the card from the deck
+                send_to_player(game->p, game, "You don't have that card\n");
+                continue;
 
-        } else {
-            // otherwise it was a success, we need 1 less card now
-            c++;
+            } else {
+                // otherwise it was a success, we need 1 less card now
+                c++;
+
+            }
 
         }
-
+        
+    } else {
+        
+        // remove cards from bots hand
+        get_kitty_from_bot(game);
+        
     }
 
     // send kitty done to all
@@ -527,13 +505,13 @@ void kitty_round(GameInfo* game) {
 
 }
 
-// handles choosing the joker suite, if it is no trumps
+// handles choosing the joker suit, if it is no trumps
 void joker_round(GameInfo* game) {
-    game->jokerSuite = DEFAULT_SUITE; // default joker suite
+    game->jokerSuite = DEFAULT_SUITE; // default joker suit
 
-    // choose joker suite round
-    if (game->suite == NOTRUMPS) {
-        fprintf(stdout, "Choosing joker suite\n");
+    // choose joker suit round
+    if (game->suit == NOTRUMPS) {
+        fprintf(stdout, "Choosing joker suit\n");
 
         // find which player has the joker. loop through each players deck
         int playerWithJoker = -1;
@@ -546,42 +524,51 @@ void joker_round(GameInfo* game) {
 
         }
 
-        // get suite from user, assuming a player has the joker
+        // get suit from user, assuming a player has the joker
         while (playerWithJoker != -1) {
-            // ask user for suite
-            send_to_player(playerWithJoker, game, "jokerwant\n");
+            
+            if (game->player[playerWithJoker].bot == 0) {
+                // ask user for suit
+                send_to_player(playerWithJoker, game, "jokerwant\n");
 
-            // get suite of player with joker
-            game->p = playerWithJoker;
-            char* msg = get_message_from_player(game);
+                // get suit of player with joker
+                game->p = playerWithJoker;
+                char* msg = get_message_from_player(game);
 
-            // check length valid
-            if (strlen(msg) != 2) {
-                send_to_player(game->p, game, "Bad length\n");
-                continue;
+                // check length valid
+                if (strlen(msg) != 2) {
+                    send_to_player(game->p, game, "Bad length\n");
+                    continue;
 
-            }
+                }
 
-            // check suite valid
-            if (return_trump(msg[0]) != DEFAULT_SUITE &&
-                    return_trump(msg[0]) != NOTRUMPS) {
-                // set the jokers suite in the game, and we're done
-                game->jokerSuite = return_trump(msg[0]);
+                // check suit valid
+                if (return_trump(msg[0]) != DEFAULT_SUITE &&
+                        return_trump(msg[0]) != NOTRUMPS) {
+                    // set the jokers suit in the game, and we're done
+                    game->jokerSuite = return_trump(msg[0]);
+                    break;
+
+                }
+
+                send_to_player(game->p, game, "Not a suit\n");
+            
+            } else {
+                // get joker suit from bot
+                get_joker_suit_from_bot(game);
                 break;
-
+                
             }
-
-            send_to_player(game->p, game, "Not a suite\n");
 
         }
 
     }
 
-    // send joker suite if it was chosen
+    // send joker suit if it was chosen
     if (game->jokerSuite != DEFAULT_SUITE) {
         // prepare string
         char* send = malloc(BUFFER_LENGTH * sizeof(char));
-        sprintf(send, "Joker suite chosen. It is a %c\n",
+        sprintf(send, "Joker suit chosen. It is a %c\n",
                 return_trump_char(game->jokerSuite));
         send_to_all(send, game);
         fprintf(stdout, "%s", send);
@@ -606,7 +593,7 @@ void play_round(GameInfo* game) {
         // sort each players deck
         for (int i = 0; i < NUM_PLAYERS; i++) {
             sort_deck(&game->player[i].deck, NUM_ROUNDS - rounds,
-                    game->suite, game->jokerSuite);
+                    game->suit, game->jokerSuite);
 
         }
 
@@ -632,7 +619,7 @@ void play_round(GameInfo* game) {
         // winning card
         Card winner;
         winner.value = 0;
-        winner.suite = 0;
+        winner.suit = 0;
 
         // leading trump
         Trump lead = DEFAULT_SUITE;
@@ -661,9 +648,9 @@ void play_round(GameInfo* game) {
             // if we are the first to play, our card is automatically winning
             if (plays == 0) {
                 winner = card;
-                lead = handle_bower(card, game->suite).suite;
+                lead = handle_bower(card, game->suit).suit;
 
-            } else if (compare_cards(card, winner, game->suite) == 1) {
+            } else if (compare_cards(card, winner, game->suit) == 1) {
                 // we have a valid card. check if it's higher than winner
                 winner = card;
                 win = game->p;
@@ -752,14 +739,14 @@ void end_round(GameInfo* game) {
         // take away points depending on how much they bet
         // points formula from table on rules web page
         game->teamPoints[game->betWinner % 2] -=
-                ((4 + game->suite * 2) * 10 + (game->highestBet - 6) * 100);
+                ((4 + game->suit * 2) * 10 + (game->highestBet - 6) * 100);
 
     } else {
         result = "Betting team won!\n";
 
         // give points depending on how much they bet
         game->teamPoints[game->betWinner % 2] +=
-                ((4 + game->suite * 2) * 10 + (game->highestBet - 6) * 100);
+                ((4 + game->suit * 2) * 10 + (game->highestBet - 6) * 100);
 
     }
 
@@ -850,7 +837,7 @@ bool valid_bet(GameInfo* game, char* msg) {
 
     }
 
-    // make sure value and suite are valid
+    // make sure value and suit are valid
     if (newBet < 6 || newBet > 10 || newSuite == -1) {
         send_to_player(game->p, game, "Invalid bet\n");
         return false;
@@ -860,10 +847,10 @@ bool valid_bet(GameInfo* game, char* msg) {
     // so the input is valid, now check if the bet is higher
     // than the last one. higher number guarantees a higher bet.
     if (newBet > game->highestBet || (newBet == game->highestBet &&
-            newSuite > game->suite)) {
+            newSuite > game->suit)) {
 
         game->highestBet = newBet;
-        game->suite = newSuite;
+        game->suit = newSuite;
 
     } else {
         send_to_player(game->p, game, "Bet not high enough\n");
@@ -874,7 +861,6 @@ bool valid_bet(GameInfo* game, char* msg) {
     return true;
 
 }
-
 
 // loop until we get a valid bet from the user, returns string of this bet
 char* get_valid_bet_from_player(GameInfo* game, int* pPassed) {
@@ -889,15 +875,21 @@ char* get_valid_bet_from_player(GameInfo* game, int* pPassed) {
         // bet string
         char* msg;
         
-        // get bet from player (check if bot here)
-        msg = get_message_from_player(game);
+        // get bet from player 
+        if (game->player[game->p].bot == 0) {
+            msg = get_message_from_player(game);
+            
+        } else {
+            // get bet from bot. we know this will be valid, so break
+            get_bet_from_bot(game);
+            break;
+            
+        }
 
         // check if it's a pass
         if (strcmp(msg, "PASS\n") == 0) {
             // set passed to true, change send msg
             game->player[game->p].hasPassed = true;
-            sprintf(send, "Player %d passed\n", game->p);
-            (*pPassed)++;
             break;
 
         } else if (strcmp(msg, "MISERE\n") == 0) { // misere
@@ -906,7 +898,7 @@ char* get_valid_bet_from_player(GameInfo* game, int* pPassed) {
                 // it's valid. set bet to be equal to 7 no trumps,
                 // that way any 8 can beat this bet
                 game->highestBet = 7;
-                game->suite = NOTRUMPS;
+                game->suit = NOTRUMPS;
                 game->misere = true;
                 sprintf(send, "Player %d bet misere\n", game->p);
                 break;
@@ -924,11 +916,11 @@ char* get_valid_bet_from_player(GameInfo* game, int* pPassed) {
         } else if (strcmp(msg, "OPENMISERE\n") == 0) { // open misere
             // check misere conditions are met, must be <= 10D
             if ((game->highestBet < 10 || (game->highestBet == 10 &&
-                    game->suite <= DIAMONDS)) && game->open == false) {
+                    game->suit <= DIAMONDS)) && game->open == false) {
                 // it's valid. set bet to be equal to 10 diamonds,
                 // that way 10H or higher can beat it
                 game->highestBet = 10;
-                game->suite = DIAMONDS;
+                game->suit = DIAMONDS;
                 game->misere = true;
                 game->open = true;
                 sprintf(send, "Player %d bet open misere\n", game->p);
@@ -944,9 +936,7 @@ char* get_valid_bet_from_player(GameInfo* game, int* pPassed) {
             }
 
         } else if (valid_bet(game, msg) == true) {
-            // update string
-            sprintf(send, "Player %d bet %d%c\n", game->p, game->highestBet,
-                    return_trump_char(game->suite));
+            // update game stats
             game->misere = false;
             game->open = false;
             break;
@@ -957,38 +947,64 @@ char* get_valid_bet_from_player(GameInfo* game, int* pPassed) {
 
     }
     
+    if (game->player[game->p].hasPassed == true) {
+        // send string if player or bot passed
+        sprintf(send, "Player %d passed\n", game->p);
+        (*pPassed)++;
+        
+    } else if (game->misere == false) {
+        // send string if bot or player makes normal bet
+        sprintf(send, "Player %d bet %d%c\n", game->p, game->highestBet,
+                return_trump_char(game->suit));
+
+    }    
+    
+    // assumes bots will not be able to misere
+    
     return send;
 
 }
 
-// loop until we get a valid card from the user, returns this card
+// loop until we get a valid card from the user or bot, returns this card
 Card get_valid_card_from_player(GameInfo* game, Trump lead, int cards) {
     while (1) {
-        // tell user to send card
-        send_to_player(game->p, game, "send\n");
+        
+        Card card;
+        // bot and player
+        if (game->player[game->p].bot == 0) {
+            // tell user to send card
+            send_to_player(game->p, game, "send\n");
 
-        // get card and check validity and remove from deck
-        Card card = return_card_from_string(get_message_from_player(game));
+            // get card from user
+            card = return_card_from_string(get_message_from_player(game));
+        
+        } else {
+            // get card from bot
+            //card = get_card_from_bot(game);
+            return get_card_from_bot(game, lead, cards);
+            
+        }
+        
         if (card.value == 0) {
             send_to_player(game->p, game, "Not a card\n");
             continue;
 
         }
 
-        // handle joker here so correct_suite_player works
-        if (card.value == JOKER_VALUE && game->suite == NOTRUMPS) {
-            card.suite = game->jokerSuite;
+        // handle joker here so correct_suit_player works
+        if (card.value == JOKER_VALUE && game->suit == NOTRUMPS) {
+            card.suit = game->jokerSuite;
 
         } else if (card.value == JOKER_VALUE) {
-            card.suite = game->suite;
+            card.suit = game->suit;
 
         }
 
         // check that the player doesn't have another card they
         // must be playing, and check they have the card in their deck
-        if (correct_suite_player(card, game->player[game->p].deck, lead,
-                game->suite, cards) == false) {
-            send_to_player(game->p, game, "You must play lead suite\n");
+        if (correct_suit_player(card, game->player[game->p].deck, lead,
+                game->suit, cards) == false) {
+            send_to_player(game->p, game, "You must play lead suit\n");
             continue;
 
         } else if (remove_card_from_deck(card,

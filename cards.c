@@ -12,22 +12,22 @@ Card* create_deck() {
         // deal with case for 4's, we only want red ones.
         if (i != 4) {
             deck[card].value = i;
-            deck[card++].suite = SPADES;
+            deck[card++].suit = SPADES;
             deck[card].value = i;
-            deck[card++].suite = CLUBS;
+            deck[card++].suit = CLUBS;
 
         }
 
         deck[card].value = i;
-        deck[card++].suite = DIAMONDS;
+        deck[card++].suit = DIAMONDS;
         deck[card].value = i;
-        deck[card++].suite = HEARTS;
+        deck[card++].suit = HEARTS;
 
     }
 
     // add joker. default to 4
     deck[card].value = JOKER_VALUE;
-    deck[card].suite = NOTRUMPS;
+    deck[card].suit = NOTRUMPS;
 
     // shuffle
     for (int i = 42; i > 0; i--) {
@@ -72,7 +72,7 @@ char* return_card(Card card) {
             case 10:
                 ret[0] = '1';
                 ret[1] = '0';
-                ret[2] = return_trump_char(card.suite);
+                ret[2] = return_trump_char(card.suit);
                 return ret;
 
             case JACK_VALUE:
@@ -99,20 +99,20 @@ char* return_card(Card card) {
 
     }
 
-    // get card suite and return our result
-    ret[1] = return_trump_char(card.suite);
+    // get card suit and return our result
+    ret[1] = return_trump_char(card.suit);
     return ret;
 
 }
 
 // given a string representation of a card, this returns a card representing
-// that string, or a card with 0 value and 0 suite if unsuccessful
+// that string, or a card with 0 value and 0 suit if unsuccessful
 Card return_card_from_string(char* card) {
 
     // default values
     Card ret;
     ret.value = 0;
-    ret.suite = 0;
+    ret.suit = 0;
 
     // case for JOKER
     if (strcmp(card, "JOKER\n") == 0) {
@@ -123,10 +123,10 @@ Card return_card_from_string(char* card) {
 
     // case for 10's
     if (strlen(card) == 4 && card[0] == '1' && card[1] == '0') {
-        // check valid suite
+        // check valid suit
         if (return_trump(card[2]) != 4 && return_trump(card[2]) != -1) {
             ret.value = 10;
-            ret.suite = return_trump(card[2]);
+            ret.suit = return_trump(card[2]);
 
         }
 
@@ -140,7 +140,7 @@ Card return_card_from_string(char* card) {
 
     }
 
-    // check valid suite
+    // check valid suit
     if (return_trump(card[1]) == 4 || return_trump(card[1]) == -1) {
         return ret;
 
@@ -185,8 +185,8 @@ Card return_card_from_string(char* card) {
 
     }
 
-    // value and suite is valid, so set suite and return
-    ret.suite = return_trump(card[1]);
+    // value and suit is valid, so set suit and return
+    ret.suit = return_trump(card[1]);
     return ret;
 
 }
@@ -279,7 +279,7 @@ bool remove_card_from_deck(Card card, Card** deck, int cards) {
 
 }
 
-// sorts deck by trump, use NOTRUMPS for no suite chosen
+// sorts deck by trump, use NOTRUMPS for no suit chosen
 void sort_deck(Card** deck, int cards, Trump trump, Trump jokerSuite) {
 
     // selection sort, O(n^2) is fine for these small sets
@@ -312,23 +312,23 @@ void sort_deck(Card** deck, int cards, Trump trump, Trump jokerSuite) {
                 // if we're in NOTRUMPS, handle joker differently
                 if (trump == NOTRUMPS) {
 
-                    // if trump is notrumps then joker suite is also no trumps
-                    // so this works even if suite not chosen
-                    card.suite = jokerSuite;
+                    // if trump is notrumps then joker suit is also no trumps
+                    // so this works even if suit not chosen
+                    card.suit = jokerSuite;
 
                 } else {
-                    // we are in a valid suite, set joker to be this suite
-                    card.suite = trump;
+                    // we are in a valid suit, set joker to be this suit
+                    card.suit = trump;
 
                 }
 
             }
 
             // this will sort it fine if we are hearts or no trumps,
-            // but we want the trump suite to be sorted to the front
-            if (card.suite == trump) {
-                // give the card a higher suite than the other trumps!
-                card.suite = NOTRUMPS;
+            // but we want the trump suit to be sorted to the front
+            if (card.suit == trump) {
+                // give the card a higher suit than the other trumps!
+                card.suit = NOTRUMPS;
 
             }
 
@@ -341,11 +341,11 @@ void sort_deck(Card** deck, int cards, Trump trump, Trump jokerSuite) {
             }
 
             // compare card to the max index, update max if card is higher
-            if (card.suite > maxCard.suite) {
+            if (card.suit > maxCard.suit) {
                 max = j;
                 maxCard = card;
 
-            } else if ((card.suite == maxCard.suite) &&
+            } else if ((card.suit == maxCard.suit) &&
                     (card.value > maxCard.value)) {
                 max = j;
                 maxCard = card;
@@ -382,10 +382,10 @@ bool deck_has_joker(Card* deck) {
 // return 0 if card a == card b
 int compare_cards(Card a, Card b, Trump trump) {
     // no trump case is handled here because the given trump will be the
-    // suite of the first card played.
+    // suit of the first card played.
 
     // first, get rid of case for equal (and joker equal)
-    if ((a.value == b.value && a.suite == b.suite) || (a.value == JOKER_VALUE &&
+    if ((a.value == b.value && a.suit == b.suit) || (a.value == JOKER_VALUE &&
             b.value == JOKER_VALUE)) {
         return 0;
 
@@ -404,13 +404,13 @@ int compare_cards(Card a, Card b, Trump trump) {
     // first, cases where one card is the trump and the other isnt.
     // the other case is when either both or none are trump, and the highest
     // card wins this time.
-    if (first.suite == trump && second.suite != trump) {
+    if (first.suit == trump && second.suit != trump) {
         return 1;
 
-    } else if (first.suite != trump && second.suite == trump) {
+    } else if (first.suit != trump && second.suit == trump) {
         return -1;
 
-    } else if (first.value > second.value && first.suite == second.suite) {
+    } else if (first.value > second.value && first.suit == second.suit) {
         // this assumes second is the card that is currently winning the bet
         return 1;
 
@@ -421,21 +421,21 @@ int compare_cards(Card a, Card b, Trump trump) {
 
 }
 
-// returns false if the deck contains a card of suite lead and card isn't of
-// suite lead. returns true otherwise. trump is the games trump
-bool correct_suite_player(Card card, Card* deck, Trump lead, Trump trump,
+// returns false if the deck contains a card of suit lead and card isn't of
+// suit lead. returns true otherwise. trump is the games trump
+bool correct_suit_player(Card card, Card* deck, Trump lead, Trump trump,
         int rounds) {
-    // if they are playing a card from the leading suite, it's fine
-    if (handle_bower(card, trump).suite == lead) {
+    // if they are playing a card from the leading suit, it's fine
+    if (handle_bower(card, trump).suit == lead) {
         return true;
 
     }
 
-    // the only other valid case is if the user has no cards of leading suite
+    // the only other valid case is if the user has no cards of leading suit
     for (int i = 0; i < rounds; i++) {
-        // if we have a card of the leading suite that we aren't playing
+        // if we have a card of the leading suit that we aren't playing
         // return false. also change it into the bower if necessary
-        if (handle_bower(deck[i], trump).suite == lead) {
+        if (handle_bower(deck[i], trump).suit == lead) {
             return false;
 
         }
@@ -448,11 +448,11 @@ bool correct_suite_player(Card card, Card* deck, Trump lead, Trump trump,
 }
 
 
-// changes the value and suite of the card if it is a left or right bower.
+// changes the value and suit of the card if it is a left or right bower.
 Card handle_bower(Card card, Trump trump) {
     Card ret;
     ret.value = card.value;
-    ret.suite = card.suite;
+    ret.suit = card.suit;
 
     // must be a jack
     if (ret.value != JACK_VALUE) {
@@ -461,24 +461,24 @@ Card handle_bower(Card card, Trump trump) {
     }
 
     // check for right bower
-    if (ret.suite == trump) {
+    if (ret.suit == trump) {
         ret.value = RIGHT_BOWER_VALUE;
         return ret;
     }
 
-    // if ret.suite black and trump black, set to left bower value and suite
-    if ((ret.suite == SPADES || ret.suite == CLUBS) &&
+    // if ret.suit black and trump black, set to left bower value and suit
+    if ((ret.suit == SPADES || ret.suit == CLUBS) &&
             (trump == SPADES || trump == CLUBS)) {
         ret.value = LEFT_BOWER_VALUE;
-        ret.suite = trump;
+        ret.suit = trump;
 
     }
 
     // same with red jacks
-    if ((ret.suite == DIAMONDS || ret.suite == HEARTS) &&
+    if ((ret.suit == DIAMONDS || ret.suit == HEARTS) &&
             (trump == DIAMONDS || trump == HEARTS)) {
         ret.value = LEFT_BOWER_VALUE;
-        ret.suite = trump;
+        ret.suit = trump;
 
     }
 

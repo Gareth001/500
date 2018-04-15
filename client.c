@@ -128,9 +128,9 @@ void game_loop(int fileDes) {
         // kitty is over now
         fprintf(stdout, "Kitty finished\n");
 
-        // we need to choose the suite for the joker if we are doing no trumps
+        // we need to choose the suit for the joker if we are doing no trumps
         // very similar to how kitty round is handled
-        fprintf(stdout, "Choosing joker suite\n");
+        fprintf(stdout, "Choosing joker suit\n");
 
         joker_round(fileDes);
 
@@ -262,7 +262,7 @@ void joker_round(int fileDes) {
 
         if (strcmp(result, "jokerwant") == 0) {
             // print to user that we want the joker
-            fprintf(stdout, "Choose joker suite: ");
+            fprintf(stdout, "Choose joker suit: ");
             fflush(stdout);
             send_input(fileDes);
 
@@ -277,7 +277,7 @@ void joker_round(int fileDes) {
             exit(5);
 
         } else {
-            // server sent the joker suite here, we will get jokerdone next
+            // server sent the joker suit here, we will get jokerdone next
             fprintf(stdout, "%s\n", result);
 
         }
@@ -382,6 +382,7 @@ int connect_to(struct in_addr* ipAddress, int port) {
     // attempt to connect to the server
     if (connect(fileDes, (struct sockaddr*)&socketAddr,
             sizeof(socketAddr)) < 0) {
+        fprintf(stderr, "Connect failed\n");
         exit(4);
 
     }

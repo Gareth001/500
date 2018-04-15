@@ -10,10 +10,10 @@
 #define KING_VALUE 13
 #define ACE_VALUE 14
 #define LEFT_BOWER_VALUE 15 // jack of trump colour
-#define RIGHT_BOWER_VALUE 16 // jack of trump suite
+#define RIGHT_BOWER_VALUE 16 // jack of trump suit
 #define JOKER_VALUE 17
 
-// suite definitions
+// suit definitions
 #define SPADES 0
 #define CLUBS 1
 #define DIAMONDS 2
@@ -28,22 +28,22 @@
 // ascii character offset for '0'
 #define ASCII_NUMBER_OFFSET 48
 
-// cards. We store a value (4, 7, king, ace etc) and a suite (spades etc).
-// In the case of the joker, the value is set to 15 and the suite is set as
-// the trump in the case of a normal game and the chosen suite if no trumps is
+// cards. We store a value (4, 7, king, ace etc) and a suit (spades etc).
+// In the case of the joker, the value is set to 15 and the suit is set as
+// the trump in the case of a normal game and the chosen suit if no trumps is
 // chosen.
 
 // Suite is the same as Trump below except that the Trump of a card cannot be
 // no trumps.
 
-// card struct, contains the suite
+// card struct, contains the suit
 typedef struct Card {
     int value;
-    int suite;
+    int suit;
 
 } Card;
 
-// trumps. see suite defeinitions above
+// trumps. see suit defeinitions above
 typedef int Trump;
 
 
@@ -70,7 +70,7 @@ int compare_cards(Card a, Card b, Trump trump);
 Card* create_deck();
 
 // given a string representation of a card, this returns a card representing
-// that string, or a card with 0 value and 0 suite if unsuccessful
+// that string, or a card with 0 value and 0 suit if unsuccessful
 Card return_card_from_string(char* card);
 
 // removes the given card from the given deck, with given number of cards.
@@ -80,19 +80,19 @@ bool remove_card_from_deck(Card card, Card** deck, int cards);
 // returns true if deck has the joker, false otherwise.
 bool deck_has_joker(Card* deck);
 
-// returns a new card with the changed value and suite of
+// returns a new card with the changed value and suit of
 // the card if it is a left or right bower.
 Card handle_bower(Card card, Trump trump);
 
-// returns false if the deck contains a card of suite lead and card isn't of
-// suite lead. returns true otherwise. trump is the games trump
-bool correct_suite_player(Card card, Card* deck, Trump lead, Trump trump,
+// returns false if the deck contains a card of suit lead and card isn't of
+// suit lead. returns true otherwise. trump is the games trump
+bool correct_suit_player(Card card, Card* deck, Trump lead, Trump trump,
         int rounds);
 
 // swaps two cards in the given positions in the given deck
 void swap_cards(Card* deck, int origpos, int newpos);
 
-// sorts deck by trump, use NOTRUMPS for no suite chosen
+// sorts deck by trump, use NOTRUMPS for no suit chosen
 void sort_deck(Card** deck, int cards, Trump trump, Trump jokerSuite);
 
 #endif /* CARDS_H */

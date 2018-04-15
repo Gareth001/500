@@ -5,7 +5,7 @@
 * Command line implementation of 500
 * Online gameplay, play with your friends across the internet
 * Very lightweight with only a 16kb download
-* Fully implemented 500 functionality, such as enforcing following suite, misere and scoring
+* Fully implemented 500 functionality, such as enforcing following suit, misere and scoring
 
 
 ## Installation
@@ -24,10 +24,10 @@ When betting, send a number between 6 and 10 followed by a character representin
 
 Passing is done by **PASS**, betting finishes when all players pass (including the winner).
 
-When choosing the joker suite if you won with a no trumps bet, send a single character representing the suite of the card.
+When choosing the joker suit if you won with a no trumps bet, send a single character representing the suit of the card.
 
-Number cards are represented by their numerical value followed by the suite of the card. E.g. 8 of Spades is 8S.
-Picture cards are represented by the starting character of the rank (**J**ack, **Q**ueen, **K**ing, **A**ce) followd by the suite, e.g. Ace of Spaces is AS.
+Number cards are represented by their numerical value followed by the suit of the card. E.g. 8 of Spades is 8S.
+Picture cards are represented by the starting character of the rank (**J**ack, **Q**ueen, **K**ing, **A**ce) followd by the suit, e.g. Ace of Spaces is AS.
 Joker is represented by JOKER.
 For the kitty and play rounds, just send a card by typing the card exactly as it appears in your deck.
 

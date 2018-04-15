@@ -1,5 +1,5 @@
 CFLAGS = -Wall -pedantic -std=gnu99
-DEPS = shared.o shared.h cards.o cards.h
+DEPS = shared.o shared.h cards.o cards.h bot.c bot.h
 DEPS2 = shared.o shared.h
 
 all: server client
