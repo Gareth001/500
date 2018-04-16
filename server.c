@@ -7,10 +7,6 @@
 // bot.h -> server.h -> cards.h -> shared.h
 #include "bot.h"
 
-// server specific defines
-#define NUM_ROUNDS 10
-#define NUM_PLAYERS 4
-
 // Exit Statuses
 // 1: Wrong arguments
 // 2: Password too long

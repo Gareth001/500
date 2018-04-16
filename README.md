@@ -14,7 +14,9 @@ Requires at least `gcc` and `make`.
 3. Compile in 500 directory with `$ make`
 
 ## Running
-Server: `$ ./server port password`
+Server: `$ ./server port password [playertypes]`
+
+To play with bots, supply the optional playertypes string. This is a string of 4 integers, one for each of the 4 players. If the integer is 0, then a human will be put in that player slot. If the integer is larger than 0, a bot of that difficulty will be put in that slot. For example, a playertypes string of `0110` means the first and fourth players will be humans, and the 2nd and 3rd players will be level 1 bots.
 
 Client: `$ ./client ipaddress port password username`
 

@@ -3,6 +3,10 @@
 
 #include "cards.h"
 
+// server specific defines
+#define NUM_ROUNDS 10
+#define NUM_PLAYERS 4
+
 // stores player info
 typedef struct Player {
 

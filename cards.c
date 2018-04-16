@@ -1,6 +1,19 @@
 // contains all our card value defines
 #include "cards.h"
 
+// swaps two cards in the given positions in the given deck
+void swap_cards(Card* deck, int origpos, int newpos) {
+    // save original card
+    Card temp = deck[origpos];
+
+    // move the card from newpos to origpos
+    deck[origpos] = deck[newpos];
+
+    // move the saved card to newpos
+    deck[newpos] = temp;
+
+}
+
 // returns an array of 43 cards, shuffled.
 Card* create_deck() {
     Card* deck = malloc(43 * sizeof(Card));
@@ -37,19 +50,6 @@ Card* create_deck() {
 
     // return this deck
     return deck;
-
-}
-
-// swaps two cards in the given positions in the given deck
-void swap_cards(Card* deck, int origpos, int newpos) {
-    // save original card
-    Card temp = deck[origpos];
-
-    // move the card from newpos to origpos
-    deck[origpos] = deck[newpos];
-
-    // move the saved card to newpos
-    deck[newpos] = temp;
 
 }
 

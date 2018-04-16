@@ -46,7 +46,6 @@ typedef struct Card {
 // trumps. see suit defeinitions above
 typedef int Trump;
 
-
 // returns a human readable representation of the card
 char* return_card(Card card);
 
@@ -88,9 +87,6 @@ Card handle_bower(Card card, Trump trump);
 // suit lead. returns true otherwise. trump is the games trump
 bool correct_suit_player(Card card, Card* deck, Trump lead, Trump trump,
         int rounds);
-
-// swaps two cards in the given positions in the given deck
-void swap_cards(Card* deck, int origpos, int newpos);
 
 // sorts deck by trump, use NOTRUMPS for no suit chosen
 void sort_deck(Card** deck, int cards, Trump trump, Trump jokerSuit);
