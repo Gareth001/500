@@ -4,12 +4,12 @@
 ## Features
 * Command line implementation of 500
 * Online gameplay, play with your friends across the internet
-* Very lightweight with only a 16kb download
+* Very lightweight with only a 23kb download
 * Fully implemented 500 functionality, such as enforcing following suit, misere and scoring
 * Play with or against bots! Or even watch 4 bots battle it out! Similar in difficulty to an average 500 player
 
 
-## Installation
+## Compiling
 Requires at least `gcc` and `make`.
 1. Clone the repository with `$ git clone https://github.com/Gareth001/500.git`
 3. Compile in 500 directory with `$ make`
