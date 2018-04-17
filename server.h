@@ -36,6 +36,10 @@ typedef struct GameInfo {
     int* teamPoints; // points for each team, index 0 is player 0's team,
     // 1 is player 1's team
 
+    Card winner; // winning card of this play round
+    Trump lead; // suit lead for this play round
+    int win; // player that is winning this play round
+    
     int start; // betting player
     int p; // current player selected
 

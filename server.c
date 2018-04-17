@@ -28,7 +28,7 @@ void send_to_player(int player, GameInfo* game, char* message);
 // responses from user
 char* get_valid_bet_from_player(GameInfo* game, int* pPassed);
 char* get_message_from_player(GameInfo* game);
-Card get_valid_card_from_player(GameInfo* game, Trump lead, int cards);
+Card get_valid_card_from_player(GameInfo* game, int cards);
 bool valid_bet(GameInfo* game, char* msg);
 
 // input related
@@ -87,7 +87,8 @@ int main(int argc, char** argv) {
             if (argv[3][i] < ASCII_NUMBER_OFFSET || 
                     argv[3][i] > ASCII_NUMBER_OFFSET + BOT_MAX_DIFFICULTY) {
                 
-                fprintf(stderr, "Bad playertypes string\n");
+                fprintf(stderr, "Bad playertypes string (max bot diff. %d)\n", 
+                        BOT_MAX_DIFFICULTY);
                 return 6;
             
             }
@@ -503,7 +504,7 @@ void kitty_round(GameInfo* game) {
 
 // handles choosing the joker suit, if it is no trumps
 void joker_round(GameInfo* game) {
-    game->jokerSuit = DEFAULT_Suit; // default joker suit
+    game->jokerSuit = DEFAULT_SUIT; // default joker suit
 
     // choose joker suit round
     if (game->suit == NOTRUMPS) {
@@ -539,7 +540,7 @@ void joker_round(GameInfo* game) {
                 }
 
                 // check suit valid
-                if (return_trump(msg[0]) != DEFAULT_Suit &&
+                if (return_trump(msg[0]) != DEFAULT_SUIT &&
                         return_trump(msg[0]) != NOTRUMPS) {
                     // set the jokers suit in the game, and we're done
                     game->jokerSuit = return_trump(msg[0]);
@@ -551,7 +552,7 @@ void joker_round(GameInfo* game) {
             
             } else {
                 // get joker suit from bot
-                get_joker_suit_from_bot(game);
+                get_joker_suit_from_bot(game, playerWithJoker);
                 break;
                 
             }
@@ -561,7 +562,7 @@ void joker_round(GameInfo* game) {
     }
 
     // send joker suit if it was chosen
-    if (game->jokerSuit != DEFAULT_Suit) {
+    if (game->jokerSuit != DEFAULT_SUIT) {
         // prepare string
         char* send = malloc(BUFFER_LENGTH * sizeof(char));
         sprintf(send, "Joker suit chosen. It is a %c\n",
@@ -613,15 +614,14 @@ void play_round(GameInfo* game) {
         send_to_all(buff, game);
 
         // winning card
-        Card winner;
-        winner.value = 0;
-        winner.suit = 0;
+        game->winner.value = 0;
+        game->winner.suit = 0;
 
         // leading trump
-        Trump lead = DEFAULT_Suit;
+        game->lead = DEFAULT_SUIT;
 
         // Winning player of this round
-        int win = game->p;
+        game->win = game->p;
 
         // loop until we get to NUM_PLAYERS plays
         for (int plays = 0; plays != NUM_PLAYERS; ) {
@@ -638,18 +638,17 @@ void play_round(GameInfo* game) {
             }
 
             // current card from player (or bot)
-            Card card = get_valid_card_from_player(game, lead,
-                    NUM_ROUNDS - rounds);
+            Card card = get_valid_card_from_player(game, NUM_ROUNDS - rounds);
 
             // if we are the first to play, our card is automatically winning
             if (plays == 0) {
-                winner = card;
-                lead = handle_bower(card, game->suit).suit;
+                game->winner = card;
+                game->lead = handle_bower(card, game->suit).suit;
 
-            } else if (compare_cards(card, winner, game->suit) == 1) {
+            } else if (compare_cards(card, game->winner, game->suit) == 1) {
                 // we have a valid card. check if it's higher than winner
-                winner = card;
-                win = game->p;
+                game->winner = card;
+                game->win = game->p;
 
             }
 
@@ -657,12 +656,14 @@ void play_round(GameInfo* game) {
             char* message = malloc(BUFFER_LENGTH * sizeof(char));
             if (++plays == NUM_PLAYERS) {
                 sprintf(message, "Player %d played %s. Player %d won with %s\n",
-                        game->p, return_card(card), win, return_card(winner));
+                        game->p, return_card(card), game->win,
+                        return_card(game->winner));
 
             } else {
                 sprintf(message,
                         "Player %d played %s. Player %d winning with %s\n",
-                        game->p, return_card(card), win, return_card(winner));
+                        game->p, return_card(card), game->win,
+                        return_card(game->winner));
 
             }
 
@@ -678,7 +679,7 @@ void play_round(GameInfo* game) {
         // round has finished
         send_to_all("roundover\n", game);
         rounds++; // add to round
-        game->p = win; // winning player plays next
+        game->p = game->win; // winning player plays next
         game->player[game->p].wins++; // increment wins
 
         // send players how many tricks the winning team has won
@@ -772,6 +773,9 @@ void end_round(GameInfo* game) {
 
     }
 
+    fprintf(stdout, "Team 0 points: %d\n", game->teamPoints[0]);
+    fprintf(stdout, "Team 1 points: %d\n", game->teamPoints[1]);
+    
     bool over = false;
 
     // check if a team has won (or lost)
@@ -876,8 +880,17 @@ char* get_valid_bet_from_player(GameInfo* game, int* pPassed) {
             msg = get_message_from_player(game);
             
         } else {
-            // get bet from bot. we know this will be valid, so break
+            // get bet from bot
             get_bet_from_bot(game);
+            
+            // set misere to false if bot bet (they cannot misere)
+            if (game->player[game->p].hasPassed == false) {
+                game->misere = false;
+                game->open = false;
+                
+            }
+            
+            // we know this will be valid, so break
             break;
             
         }
@@ -962,7 +975,7 @@ char* get_valid_bet_from_player(GameInfo* game, int* pPassed) {
 }
 
 // loop until we get a valid card from the user or bot, returns this card
-Card get_valid_card_from_player(GameInfo* game, Trump lead, int cards) {
+Card get_valid_card_from_player(GameInfo* game, int cards) {
     while (1) {
         
         Card card;
@@ -977,7 +990,7 @@ Card get_valid_card_from_player(GameInfo* game, Trump lead, int cards) {
         } else {
             // get card from bot
             //card = get_card_from_bot(game);
-            return get_card_from_bot(game, lead, cards);
+            return get_card_from_bot(game, cards);
             
         }
         
@@ -998,7 +1011,7 @@ Card get_valid_card_from_player(GameInfo* game, Trump lead, int cards) {
 
         // check that the player doesn't have another card they
         // must be playing, and check they have the card in their deck
-        if (correct_suit_player(card, game->player[game->p].deck, lead,
+        if (correct_suit_player(card, game->player[game->p].deck, game->lead,
                 game->suit, cards) == false) {
             send_to_player(game->p, game, "You must play lead suit\n");
             continue;

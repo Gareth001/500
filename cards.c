@@ -251,7 +251,7 @@ Trump return_trump(char trump) {
             return NOTRUMPS;
 
         default: // Bad input
-            return DEFAULT_Suit;
+            return DEFAULT_SUIT;
 
     }
 

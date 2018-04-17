@@ -19,7 +19,7 @@
 #define DIAMONDS 2
 #define HEARTS 3
 #define NOTRUMPS 4
-#define DEFAULT_Suit -1
+#define DEFAULT_SUIT -1
 
 // points for winning various bets
 #define OPEN_MISERE_POINTS 500
