@@ -21,6 +21,8 @@ To play with bots, supply the optional playertypes string. This is a string of 4
 
 Client: `$ ./client ipaddress port password username`
 
+To connect to localhost, use ip address of `0.0.0.0`.
+
 ## Input
 Suits and Trumps are represented with the starting character of each trump, so **S**pades, **C**lubs, **D**iamonds, **H**earts, **N**o trumps in order from lowest to highest.
 When betting, send a number between 6 and 10 followed by a character representing the trump. E.g. 7 No trumps is bet by sending 7N. Misere is bet by sending **MISERE** when the current bet is 7. Open Misere is bet by **OPENMISERE**, and can be bet any time.
