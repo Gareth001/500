@@ -6,6 +6,7 @@
 // server specific defines
 #define NUM_ROUNDS 10
 #define NUM_PLAYERS 4
+#define WIN_POINTS 500
 
 // stores player info
 typedef struct Player {
@@ -39,7 +40,7 @@ typedef struct GameInfo {
     Card winner; // winning card of this play round
     Trump lead; // suit lead for this play round
     int win; // player that is winning this play round
-    
+
     int start; // betting player
     int p; // current player selected
 

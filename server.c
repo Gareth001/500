@@ -35,8 +35,9 @@ bool valid_bet(GameInfo* game, char* msg);
 int check_valid_username(char* user, GameInfo* game);
 int get_winning_tricks(GameInfo* game);
 Card* deal_cards(GameInfo* game); // returns the kitty (Card* with 3 entries)
+int get_points_from_bet(GameInfo* game);
 
-// rounds - no returns
+// rounds - no return values
 void send_player_details(GameInfo* game);
 void bet_round(GameInfo* game);
 void kitty_round(GameInfo* game);
@@ -50,14 +51,14 @@ int main(int argc, char** argv) {
     if (argc != 3 && argc != 4) {
         fprintf(stderr, "Usage: server port password [playertypes]\n");
         return 1;
-        
-    } 
+
+    }
 
     // check valid password (correct length)
     if (strlen(argv[2]) > MAX_PASS_LENGTH) {
         fprintf(stderr, "password too long\n");
         return 2;
-        
+
     }
 
     int port = atoi(argv[1]); // read port
@@ -67,34 +68,34 @@ int main(int argc, char** argv) {
             !check_input_digits(port, argv[1])) {
         fprintf(stderr, "Bad port\n");
         return 3;
-        
+
     }
-    
+
     // case for playertypes given
     if (argc == 4) {
-        
+
         // ensure string has 4 characters in length
         if (strlen(argv[3]) != 4) {
             fprintf(stderr, "Bad playertypes string\n");
             return 6;
-            
+
         }
-        
-        // check string is valid. each char is more than ASCII_NUMBER_OFFSET 
+
+        // check string is valid. each char is more than ASCII_NUMBER_OFFSET
         // and less than BOT_MAX_DIFFICULTY + ASCII_NUMBER_OFFSET
         for (int i = 0; i < 4; i++) {
-            
-            if (argv[3][i] < ASCII_NUMBER_OFFSET || 
+
+            if (argv[3][i] < ASCII_NUMBER_OFFSET ||
                     argv[3][i] > ASCII_NUMBER_OFFSET + BOT_MAX_DIFFICULTY) {
-                
-                fprintf(stderr, "Bad playertypes string (max bot diff. %d)\n", 
+
+                fprintf(stderr, "Bad playertypes string (max bot diff. %d)\n",
                         BOT_MAX_DIFFICULTY);
                 return 6;
-            
+
             }
-            
+
         }
-        
+
     }
 
     // attempt to listen (exits here if fail) and save the fd if successful
@@ -108,16 +109,16 @@ int main(int argc, char** argv) {
     game.start = 0;
     game.player = malloc(NUM_PLAYERS * sizeof(Player));
     game.teamPoints = malloc(2 * sizeof(Player));
-    
+
     // get playertypes string
     if (argc == 4) {
         game.playerTypes = argv[3];
-        
+
     } else {
         game.playerTypes = "0000"; // default, all players
-        
+
     }
-    
+
     // process connections
     process_connections(&game);
 
@@ -165,23 +166,23 @@ void process_connections(GameInfo* game) {
 
     // loop until we have 4 players waiting to start a game
     while (game->p != NUM_PLAYERS) {
-        
+
         // check if bot or not
         if (game->playerTypes[game->p] != '0') {
-            
+
             // add bot stats
             game->player[game->p].name = "bot";
             game->player[game->p].fd = fileDes;
             game->player[game->p].bot = game->playerTypes[game->p] -
                     ASCII_NUMBER_OFFSET;
-                    
+
             // server message
-            fprintf(stdout, "Player %d connected (lvl %d bot)\n", game->p, 
+            fprintf(stdout, "Player %d connected (lvl %d bot)\n", game->p,
                     game->player[game->p].bot);
 
             game->p++;
             continue;
-            
+
         }
 
         fromAddrSize = sizeof(struct sockaddr_in);
@@ -239,9 +240,9 @@ void process_connections(GameInfo* game) {
         // bot is always here
         if (game->player[i].bot != 0) {
             continue;
-            
+
         }
-    
+
         // read 4 characters, just make sure that it works
         if (read(game->player[i].fd, malloc(4 * sizeof(char)), 4) <= 0) {
 
@@ -271,14 +272,14 @@ void process_connections(GameInfo* game) {
 void send_player_details(GameInfo* game) {
     // send all players the player details.
     for (int i = 0; i < NUM_PLAYERS; i++) {
-        
+
         if (game->player[i].bot != 0) {
             continue;
-            
+
         }
-        
+
         for (int j = 0; j < NUM_PLAYERS; j++) {
-            
+
             // string that tells the user if the player is them or a teammate
             char* str = "";
             if (i == j) {
@@ -296,11 +297,11 @@ void send_player_details(GameInfo* game) {
                         game->player[j].name, str);
 
             } else {
-                sprintf(message, "Player %d, (lvl %d bot)%s\n", j, 
+                sprintf(message, "Player %d, (lvl %d bot)%s\n", j,
                         game->player[j].bot, str);
-                
+
             }
-            
+
             send_to_player(i, game, message);
 
             // await confirmation from user
@@ -309,7 +310,7 @@ void send_player_details(GameInfo* game) {
         }
 
     }
-    
+
 }
 
 // deals cards to the players decks. returns the kitty
@@ -363,7 +364,7 @@ Card* deal_cards(GameInfo* game) {
     }
 
     // send each player their deck and return the kitty
-    send_deck_to_all(10, game);
+    send_deck_to_all(NUM_ROUNDS, game);
     return kitty;
 
 }
@@ -380,17 +381,17 @@ void bet_round(GameInfo* game) {
 
     // loop until NUM_PLAYERS have passed
     for (int pPassed = 0; pPassed != NUM_PLAYERS; ) {
-        
+
         // get bet from player (or bot) if no pass yet
         if (game->player[game->p].hasPassed == false) {
             char* send = get_valid_bet_from_player(game, &pPassed);
-            
+
             // send the bet to everyone
             fprintf(stdout, "%s", send);
             send_to_all(send, game);
 
         }
-      
+
 
         // increase current player counter
         game->p++;
@@ -441,7 +442,7 @@ void kitty_round(GameInfo* game) {
 
     // add kitty to the winners hand
     for (int i = 0; i < 3; i++) {
-        game->player[game->p].deck[10 + i] = game->kitty[i];
+        game->player[game->p].deck[NUM_ROUNDS + i] = game->kitty[i];
 
     }
 
@@ -457,7 +458,7 @@ void kitty_round(GameInfo* game) {
 
     // get rid of the extra 3 cards
     if (game->player[game->p].bot == 0) {
-    
+
         // receive 3 cards the user wants to discard
         for (int c = 0; c != 3; ) {
             // ask for some input
@@ -489,12 +490,12 @@ void kitty_round(GameInfo* game) {
             }
 
         }
-        
+
     } else {
-        
+
         // remove cards from bots hand
         get_kitty_from_bot(game);
-        
+
     }
 
     // send kitty done to all
@@ -523,7 +524,7 @@ void joker_round(GameInfo* game) {
 
         // get suit from user, assuming a player has the joker
         while (playerWithJoker != -1) {
-            
+
             if (game->player[playerWithJoker].bot == 0) {
                 // ask user for suit
                 send_to_player(playerWithJoker, game, "jokerwant\n");
@@ -549,12 +550,12 @@ void joker_round(GameInfo* game) {
                 }
 
                 send_to_player(game->p, game, "Not a suit\n");
-            
+
             } else {
                 // get joker suit from bot
                 get_joker_suit_from_bot(game, playerWithJoker);
                 break;
-                
+
             }
 
         }
@@ -735,21 +736,19 @@ void end_round(GameInfo* game) {
 
         // take away points depending on how much they bet
         // points formula from table on rules web page
-        game->teamPoints[game->betWinner % 2] -=
-                ((4 + game->suit * 2) * 10 + (game->highestBet - 6) * 100);
+        game->teamPoints[game->betWinner % 2] -= get_points_from_bet(game);
 
     } else {
         result = "Betting team won!\n";
 
         // give points depending on how much they bet
-        game->teamPoints[game->betWinner % 2] +=
-                ((4 + game->suit * 2) * 10 + (game->highestBet - 6) * 100);
+        game->teamPoints[game->betWinner % 2] += get_points_from_bet(game);
 
     }
 
     // give opponents 10 points for every trick they win (only if not misere)
     if (game->misere == false) {
-        game->teamPoints[(game->betWinner + 1)% 2] +=
+        game->teamPoints[(game->betWinner + 1) % 2] +=
                 (NUM_ROUNDS - get_winning_tricks(game)) * 10;
 
     }
@@ -775,16 +774,16 @@ void end_round(GameInfo* game) {
 
     fprintf(stdout, "Team 0 points: %d\n", game->teamPoints[0]);
     fprintf(stdout, "Team 1 points: %d\n", game->teamPoints[1]);
-    
+
     bool over = false;
 
     // check if a team has won (or lost)
     for (int i = 0; i < 2; i++) {
-        if (game->teamPoints[i] >= 500) {
+        if (game->teamPoints[i] >= WIN_POINTS) {
             // team i won
             over = true;
 
-        } else if (game->teamPoints[i] <= -500) {
+        } else if (game->teamPoints[i] <= -WIN_POINTS) {
             // team i lost lost
             over = true;
 
@@ -838,7 +837,7 @@ bool valid_bet(GameInfo* game, char* msg) {
     }
 
     // make sure value and suit are valid
-    if (newBet < 6 || newBet > 10 || newSuit == -1) {
+    if (newBet < 6 || newBet > NUM_ROUNDS || newSuit == -1) {
         send_to_player(game->p, game, "Invalid bet\n");
         return false;
 
@@ -874,25 +873,25 @@ char* get_valid_bet_from_player(GameInfo* game, int* pPassed) {
 
         // bet string
         char* msg;
-        
-        // get bet from player 
+
+        // get bet from player
         if (game->player[game->p].bot == 0) {
             msg = get_message_from_player(game);
-            
+
         } else {
             // get bet from bot
             get_bet_from_bot(game);
-            
+
             // set misere to false if bot bet (they cannot misere)
             if (game->player[game->p].hasPassed == false) {
                 game->misere = false;
                 game->open = false;
-                
+
             }
-            
+
             // we know this will be valid, so break
             break;
-            
+
         }
 
         // check if it's a pass
@@ -955,21 +954,21 @@ char* get_valid_bet_from_player(GameInfo* game, int* pPassed) {
         // error message is sent in valid_bet method
 
     }
-    
+
     if (game->player[game->p].hasPassed == true) {
         // send string if player or bot passed
         sprintf(send, "Player %d passed\n", game->p);
         (*pPassed)++;
-        
+
     } else if (game->misere == false) {
         // send string if bot or player makes normal bet
         sprintf(send, "Player %d bet %d%c\n", game->p, game->highestBet,
                 return_trump_char(game->suit));
 
-    }    
-    
+    }
+
     // assumes bots will not be able to misere
-    
+
     return send;
 
 }
@@ -977,7 +976,7 @@ char* get_valid_bet_from_player(GameInfo* game, int* pPassed) {
 // loop until we get a valid card from the user or bot, returns this card
 Card get_valid_card_from_player(GameInfo* game, int cards) {
     while (1) {
-        
+
         Card card;
         // bot and player
         if (game->player[game->p].bot == 0) {
@@ -986,14 +985,14 @@ Card get_valid_card_from_player(GameInfo* game, int cards) {
 
             // get card from user
             card = return_card_from_string(get_message_from_player(game));
-        
+
         } else {
             // get card from bot
             //card = get_card_from_bot(game);
             return get_card_from_bot(game, cards);
-            
+
         }
-        
+
         if (card.value == 0) {
             send_to_player(game->p, game, "Not a card\n");
             continue;
@@ -1054,6 +1053,12 @@ int get_winning_tricks(GameInfo* game) {
 
 }
 
+// returns the amount of points from winning the bet
+int get_points_from_bet(GameInfo* game) {
+    return (4 + game->suit * 2) * 10 + (game->highestBet - 6) * 100;
+
+}
+
 // returns 0 if the username has not been taken before, 1 otherwise
 int check_valid_username(char* user, GameInfo* game) {
     for (int i = 0; i < game->p; i++) {
@@ -1072,7 +1077,7 @@ int check_valid_username(char* user, GameInfo* game) {
 void send_to_player(int player, GameInfo* game, char* message) {
     if (game->player[player].bot == 0) {
         write(game->player[player].fd, message, strlen(message));
-        
+
     }
 
 }
@@ -1092,7 +1097,7 @@ void send_to_all_except(char* message, GameInfo* game, int except) {
             send_to_player(i, game, message);
 
         }
-        
+
     }
 
 }

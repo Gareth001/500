@@ -44,7 +44,8 @@ Card* create_deck() {
 
     // shuffle
     for (int i = 42; i > 0; i--) {
-        swap_cards(deck, i, rand() % (i+1));
+        swap_cards(deck, i, (int) ((i+1) *
+                (float) rand() / ((float) RAND_MAX + 1)));
 
     }
 
