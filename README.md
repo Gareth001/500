@@ -7,21 +7,21 @@
 * Very lightweight with only a 23kb download
 * Fully implemented 500 functionality, such as enforcing following suit, misere and scoring
 * Play with or against bots! Or even watch 4 bots battle it out! Similar in difficulty to an average 500 player
-
+* 500 is now multiplatform!
 
 ## Compiling
-Requires at least `gcc` and `make`.
+Requires at least `gcc` and `make`. Can be compiled on Windows with MinGW + MSYS.
 1. Clone the repository with `$ git clone https://github.com/Gareth001/500.git`
 3. Compile in 500 directory with `$ make`
 
 ## Running
-Server: `$ ./server port password [playertypes]`
+Server: `$ ./server port password [playertypes]` (or the cmd equivalent in Windows)
 
 To play with bots, supply the optional playertypes string. This is a string of 4 integers, one for each of the 4 players. If the integer is 0, then a human will be put in that player slot. If the integer is larger than 0, a bot of that difficulty will be put in that slot. Max bot difficulty is currently 2, with level 2 being average player difficulty and 1 being a very bad player. For example, a playertypes string of `0110` means the first and fourth players will be humans, and the 2nd and 3rd players will be level 1 bots. A playertypes string of `2222` will play a full game of all level 2 bots.
 
 Client: `$ ./client ipaddress port password username`
 
-To connect to localhost, use ip address of `0.0.0.0`.
+To connect to localhost, use ip address of `0.0.0.0` (in Windows, `127.0.0.1`).
 
 ## Input
 Suits and Trumps are represented with the starting character of each trump, so **S**pades, **C**lubs, **D**iamonds, **H**earts, **N**o trumps in order from lowest to highest.

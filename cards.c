@@ -48,7 +48,7 @@ Card* create_deck() {
                 (float) rand() / ((float) RAND_MAX + 1)));
 
     }
-
+        
     // return this deck
     return deck;
 
@@ -102,6 +102,7 @@ char* return_card(Card card) {
 
     // get card suit and return our result
     ret[1] = return_trump_char(card.suit);
+    ret[2] = '\0';
     return ret;
 
 }
@@ -196,7 +197,8 @@ Card return_card_from_string(char* card) {
 // by a single space
 char* return_hand(Card* cards, int num) {
 
-    char* message = malloc(num * 3 * sizeof(char));
+    char* message = malloc(num * 4 * sizeof(char));
+    message[0] = '\0';
 
     for (int i = 0; i < num; i++) {
         strcat(message, return_card(cards[i]));

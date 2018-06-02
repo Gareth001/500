@@ -34,6 +34,9 @@ int main(int argc, char** argv) {
     // port, validity is checked when connecting
     int port = atoi(argv[2]);
 
+    // init socket
+    socket_init();
+
     // convert hostname to IP address
     struct in_addr* ipAddress = name_to_IP_addr(argv[1]);
 
@@ -44,7 +47,7 @@ int main(int argc, char** argv) {
     {
         char* message = malloc(BUFFER_LENGTH * sizeof(char));
         sprintf(message, "%s\n", argv[3]);
-        write(fileDes, message, strlen(message));
+        write_new(fileDes, message, strlen(message));
 
     }
 
@@ -61,7 +64,7 @@ int main(int argc, char** argv) {
     {
         char* message = malloc(BUFFER_LENGTH * sizeof(char));
         sprintf(message, "%s\n", argv[4]);
-        write(fileDes, message, strlen(message));
+        write_new(fileDes, message, strlen(message));
 
     }
 
@@ -82,7 +85,7 @@ int main(int argc, char** argv) {
     read_from_fd(fileDes, BUFFER_LENGTH);
 
     // tell them yes, we are still here
-    write(fileDes, "yes\n", 4);
+    write_new(fileDes, "yes\n", 4);
 
     // receive start from server which lets us know everyone is here
     // server will either send start\n or something else
@@ -177,7 +180,7 @@ void get_player_details(int fileDes) {
         fprintf(stdout, "%s\n", read_from_fd(fileDes, BUFFER_LENGTH));
 
         // send yes to server, to tell them we got it
-        write(fileDes, "yes\n", 4);
+        write_new(fileDes, "yes\n", 4);
 
     }
 
@@ -341,7 +344,7 @@ void play_round(int fileDes) {
 void send_input(int fileDes) {
     char* buff = malloc(BUFFER_LENGTH * sizeof(char));
     fgets(buff, BUFFER_LENGTH, stdin);
-    write(fileDes, buff, strlen(buff));
+    write_new(fileDes, buff, strlen(buff));
     free(buff);
 
 }
@@ -382,6 +385,11 @@ int connect_to(struct in_addr* ipAddress, int port) {
     // attempt to connect to the server
     if (connect(fileDes, (struct sockaddr*)&socketAddr,
             sizeof(socketAddr)) < 0) {
+                
+        #ifdef _WIN32
+            printf("%d", WSAGetLastError());
+        #endif
+             
         fprintf(stderr, "Connect failed\n");
         exit(4);
 

@@ -11,8 +11,8 @@ char* read_from_fd(int fileDes, int length) {
     int count;
 
     for (count = 0; count < length - 1; count++) {
-
-        if (read(fileDes, charBuffer, 1) <= 0) {
+        
+        if (read_new(fileDes, charBuffer, 1) <= 0) {
             // exit on bad read
             fprintf(stderr, "Unexpected exit\n");
             exit(5);
@@ -33,6 +33,51 @@ char* read_from_fd(int fileDes, int length) {
 
 }
 
+// read multiplatform, return negative if error
+int read_new(int fileDes, char* buffer, int length) {
+    
+    int val = -1;
+    #ifdef _WIN32
+        val = recv(fileDes, buffer, length, 0);
+    
+    #else
+        val = read(fileDes, buffer, length);
+        
+    #endif
+    
+    return val;
+
+}
+
+// write multiplatform, return negative if error
+int write_new(int fileDes, char* buffer, int length) {
+        
+    int val = -1;
+    #ifdef _WIN32
+        val = send(fileDes, buffer, length, 0);
+    
+    #else
+        val = write(fileDes, buffer, length);
+        
+    #endif
+    
+    return val;
+
+}
+
+// initialise socket for cross platform
+int socket_init(void) {
+    #ifdef _WIN32
+        WSADATA wsa_data;
+        return WSAStartup(MAKEWORD(1,1), &wsa_data);
+        
+    #else
+        return 0;
+    
+    #endif
+    
+}
+
 // returns 0 if the number of digits of i is not the same as
 // the length of s
 int check_input_digits(int i, char* s) {
@@ -47,6 +92,6 @@ int check_input_digits(int i, char* s) {
         length++;
     }
     // compare to length of string
-    return length == strlen(s);
+    return (unsigned int)length == strlen(s);
 
 }

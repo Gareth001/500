@@ -1,6 +1,4 @@
 // server specific deps
-#include <sys/socket.h>
-#include <netdb.h>
 #include <time.h>
 
 // header files
@@ -98,6 +96,9 @@ int main(int argc, char** argv) {
 
     }
 
+    // init socket
+    socket_init();
+    
     // attempt to listen (exits here if fail) and save the fd if successful
     int fdServer = open_listen(port);
 
@@ -196,14 +197,14 @@ void process_connections(GameInfo* game) {
                 game->password) != 0) {
 
             // otherwise we got illegal input. Send no.
-            write(fileDes, "no\n", 3);
+            write_new(fileDes, "no\n", 3);
             close(fileDes);
             continue;
 
         }
 
         // password was valid, send yes to client for password
-        write(fileDes, "yes\n", 4);
+        write_new(fileDes, "yes\n", 4);
 
         // get user name from client
         char* userBuffer = read_from_fd(fileDes, MAX_NAME_LENGTH);
@@ -211,13 +212,13 @@ void process_connections(GameInfo* game) {
         // check username is valid, i.e. not taken before
         if (check_valid_username(userBuffer, game)) {
             // send no to client for user name, and forget this connection
-            write(fileDes, "no\n", 3);
+            write_new(fileDes, "no\n", 3);
             close(fileDes);
             continue;
         }
 
         // send yes to client for user name
-        write(fileDes, "yes\n", 4);
+        write_new(fileDes, "yes\n", 4);
 
         // server message
         fprintf(stdout, "Player %d connected with user name '%s'\n",
@@ -244,7 +245,7 @@ void process_connections(GameInfo* game) {
         }
 
         // read 4 characters, just make sure that it works
-        if (read(game->player[i].fd, malloc(4 * sizeof(char)), 4) <= 0) {
+        if (read_new(game->player[i].fd, malloc(4 * sizeof(char)), 4) <= 0) {
 
             // if we don't get a yes, then send a message that game
             // is not starting and we exit
@@ -292,6 +293,7 @@ void send_player_details(GameInfo* game) {
 
             // print message, note special string for bots
             char* message = malloc(BUFFER_LENGTH * sizeof(char));
+            message[0] = '\0';
             if (game->player[j].bot == 0) {
                 sprintf(message, "Player %d, '%s'%s\n", j,
                         game->player[j].name, str);
@@ -417,6 +419,7 @@ void bet_round(GameInfo* game) {
 
     // send winning bet to all players
     char* msg = malloc(BUFFER_LENGTH * sizeof(char));
+    msg[0] = '\0';
     if (game->open == true) {
         sprintf(msg, "Player %d won the bet with open misere!\n", game->p);
         game->suit = NOTRUMPS; // set suit of gameplay to no trumps
@@ -452,6 +455,7 @@ void kitty_round(GameInfo* game) {
 
     // prepare string to send to the winner and send it
     char* msg = malloc(BUFFER_LENGTH * sizeof(char));
+    msg[0] = '\0';
     sprintf(msg, "You won! Pick 3 cards to discard: %s\n",
             return_hand(game->player[game->p].deck, NUM_ROUNDS + 3));
     send_to_player(game->p, game, msg);
@@ -466,6 +470,7 @@ void kitty_round(GameInfo* game) {
 
             // send user a string of how many cards we still need
             char* message = malloc(BUFFER_LENGTH * sizeof(char));
+            message[0] = '\0';
             sprintf(message, "Pick %d more card(s)\n", 3 - c);
             send_to_player(game->p, game, message);
 
@@ -566,6 +571,7 @@ void joker_round(GameInfo* game) {
     if (game->jokerSuit != DEFAULT_SUIT) {
         // prepare string
         char* send = malloc(BUFFER_LENGTH * sizeof(char));
+        send[0] = '\0';
         sprintf(send, "Joker suit chosen. It is a %c\n",
                 return_trump_char(game->jokerSuit));
         send_to_all(send, game);
@@ -602,6 +608,7 @@ void play_round(GameInfo* game) {
         // if so send all players the bet winners hand
         if (game->open == true) {
             char* message = malloc(BUFFER_LENGTH * sizeof(char));
+            message[0] = '\0';
             sprintf(message, "Player %d's hand: %s\n", game->betWinner,
                     return_hand(game->player[game->betWinner].deck,
                     NUM_ROUNDS - rounds));
@@ -611,6 +618,7 @@ void play_round(GameInfo* game) {
 
         // send round to all
         char* buff = malloc(BUFFER_LENGTH * sizeof(char));
+        buff[0] = '\0';
         sprintf(buff, "Round %d\n", rounds);
         send_to_all(buff, game);
 
@@ -655,6 +663,7 @@ void play_round(GameInfo* game) {
 
             // send all the details of the move, who's winning / won.
             char* message = malloc(BUFFER_LENGTH * sizeof(char));
+            message[0] = '\0';
             if (++plays == NUM_PLAYERS) {
                 sprintf(message, "Player %d played %s. Player %d won with %s\n",
                         game->p, return_card(card), game->win,
@@ -685,6 +694,7 @@ void play_round(GameInfo* game) {
 
         // send players how many tricks the winning team has won
         char* message = malloc(BUFFER_LENGTH * sizeof(char));
+        message[0] = '\0';
         sprintf(message, "Betting team has won %d trick(s)\n",
                 get_winning_tricks(game));
 
@@ -761,6 +771,8 @@ void end_round(GameInfo* game) {
     char** team = malloc(2 * BUFFER_LENGTH * sizeof(char));
     team[0] = malloc(BUFFER_LENGTH * sizeof(char));
     team[1] = malloc(BUFFER_LENGTH * sizeof(char));
+    team[0][0] = '\0';
+    team[1][0] = '\0';
 
     sprintf(team[0], "%d\n", game->teamPoints[0]);
     sprintf(team[1], "%d\n", game->teamPoints[1]);
@@ -864,7 +876,8 @@ bool valid_bet(GameInfo* game, char* msg) {
 // loop until we get a valid bet from the user, returns string of this bet
 char* get_valid_bet_from_player(GameInfo* game, int* pPassed) {
     char* send = malloc(BUFFER_LENGTH * sizeof(char));
-
+    send[0] = '\0';
+    
     // loop until we get a valid bet
     while (game->player[game->p].hasPassed == false) {
 
@@ -1034,7 +1047,7 @@ Card get_valid_card_from_player(GameInfo* game, int cards) {
 // as getting bet too. exists if player has left
 char* get_message_from_player(GameInfo* game) {
     char* msg = malloc(BUFFER_LENGTH * sizeof(char));
-    if (read(game->player[game->p].fd, msg, BUFFER_LENGTH) <= 0) {
+    if (read_new(game->player[game->p].fd, msg, BUFFER_LENGTH) <= 0) {
         // player left early
         fprintf(stderr, "Unexpected exit\n");
         send_to_all_except("badinput\n", game, game->p);
@@ -1076,7 +1089,7 @@ int check_valid_username(char* user, GameInfo* game) {
 // sends the given message to the specified player
 void send_to_player(int player, GameInfo* game, char* message) {
     if (game->player[player].bot == 0) {
-        write(game->player[player].fd, message, strlen(message));
+        write_new(game->player[player].fd, message, strlen(message));
 
     }
 
@@ -1105,8 +1118,9 @@ void send_to_all_except(char* message, GameInfo* game, int except) {
 // send each player their deck
 void send_deck_to_all(int cards, GameInfo* game) {
     // send each player their deck
-    for (int i = 0; i < NUM_PLAYERS; i++) {
+    for (int i = 0; i < NUM_PLAYERS; i++) {        
         char* message = malloc(BUFFER_LENGTH * sizeof(char));
+        message[0] = '\0';
         sprintf(message, "%s\n", return_hand(game->player[i].deck, cards));
         send_to_player(i, game, message);
 
@@ -1128,7 +1142,7 @@ int open_listen(int port) {
     // allow address (port number) to be reused immediately
     int optVal = 1;
     if (setsockopt(fileDes, SOL_SOCKET, SO_REUSEADDR,
-            &optVal, sizeof(int)) < 0) {
+            (char*)&optVal, sizeof(int)) < 0) {
         error = true;
     }
 
@@ -1151,7 +1165,6 @@ int open_listen(int port) {
     // (128 by default) - max length of queue of connections
     if (listen(fileDes, SOMAXCONN) < 0) {
         error = true;
-
     }
 
     // check if listen was successful
