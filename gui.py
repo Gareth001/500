@@ -1,6 +1,7 @@
 import subprocess
 import os
 import tkinter
+from tkinter import messagebox
 
 WIDTH = 760
 HEIGHT = 760
@@ -16,19 +17,23 @@ class Model(object):
         if os.name == "posix":
 
             # make and wait
+            args = ["make", "server"]
+
             if recompile:
-                args = ["make", "server", "-B"]
-            else:
-                args = ["make", "server"]
+                args.append("-B")
 
             make = subprocess.Popen(args, stdout=subprocess.DEVNULL)
             print("compiling")
             make.wait()
-
+            print("compiled")
+            
             # create server
-            print("server created")
             self._server = subprocess.Popen(["./server", port, password, playertypes],
                     stdout=subprocess.DEVNULL)
+            print("server created")
+            
+        else:
+            print("OS not supported")
 
     def exit(self):
         if self._server != None:
@@ -37,37 +42,66 @@ class Model(object):
 
 class View(object):
     def __init__(self, master, bindings):
-
-        # canvas setup
-        self._canvas = tkinter.Canvas(master, bg='grey60',
-                                 width=WIDTH, height=HEIGHT) #Create canvas
-        self._canvas.pack(expand=1, padx=20, pady = 20) #Pack canvas
-        self._canvas.focus_set()
+        # events to controller
         self._bindings = bindings
+        self._event = "<ButtonRelease-1>"
+        
+        # main menu frame
+        self._main_menu = tkinter.Frame(master)
+        self._main_menu.pack(expand=True)
+        self._main_menu.focus_set()
 
-        host_button = tkinter.Button(self._canvas, text="Host & Play")
-        host_button.bind("<ButtonPress>", self.host)
-        host_button.pack()
+        label = tkinter.Label(self._main_menu, text="500 - GUI edition")
+        label.pack(expand=True)
+        
+        # all having the same name is fine
+        button = tkinter.Button(self._main_menu, text="Play")
+        button.bind(self._event, self.join)
+        button.pack(expand=True)
+        
+        button = tkinter.Button(self._main_menu, text="Host & Play")
+        button.bind(self._event, self.host)
+        button.pack(expand=True)
+        
+        button = tkinter.Button(self._main_menu, text="Help")
+        button.bind(self._event, self.help)
+        button.pack(expand=True)
+        
+        # no change of gui needed
+        button = tkinter.Button(self._main_menu, text="Exit")
+        button.bind(self._event, lambda event: self._bindings[2]())
+        button.pack(expand=True)
+        
+    # change gui and execute callback
+    def join(self, event):
+        self._bindings[0]()
 
     # change gui and execute callback
     def host(self, event):
-        self._bindings[0]()
-
+        self._bindings[1]()
+        
+    # show help
+    def help(self, event):
+        messagebox.showinfo("Help", "Welcome to 500")
 
 class Controller():
     def __init__(self, master):
-        master.title("Sample Text") # title of window
+        master.title("500") # title of window
         self._master = master
 
         # create model
         self._model = Model()
 
         # create view
-        self._view = View(self._master, [self.host])
+        self._view = View(self._master, [self.join, self.host, self.game_exit])
 
         # kill children on close
         self._master.protocol("WM_DELETE_WINDOW", self.game_exit)
 
+    # when user presses join
+    def join(self):
+        print("join")
+        
     # when user presses host server
     def host(self):
 
