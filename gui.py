@@ -13,27 +13,42 @@ class Model(object):
         self._server = None
 
     # compiles and creates the server
-    def create_server(self, port, password, playertypes="0000", recompile=False):
-        if os.name == "posix":
+    def create_server(self, port, password, playertypes, recompile=False):
 
-            # make and wait
-            args = ["make", "server"]
-
-            if recompile:
-                args.append("-B")
-
+        # create args
+        args = ["make", "server"]
+        if recompile:
+            args.append("-B")
+            
+        # try to make
+        try:
             make = subprocess.Popen(args, stdout=subprocess.DEVNULL)
             print("compiling")
             make.wait()
             print("compiled")
             
-            # create server
-            self._server = subprocess.Popen(["./server", port, password, playertypes],
-                    stdout=subprocess.DEVNULL)
-            print("server created")
+        except:
+            print("Make not found. Searching for precompiled binaries.")
             
-        else:
-            print("OS not supported")
+        # create server
+        if os.name == "nt":
+                            
+            if os.path.exists("server.exe"):
+                self._server = subprocess.Popen(["server.exe", port, password, playertypes])
+                print("Server Created.")
+                
+            else:
+                print("No precompiled binaries found.")
+                
+        else: # this should be the same for many other os
+        
+            if os.path.exists("server"):
+                self._server = subprocess.Popen(["./server", port, password, playertypes],
+                        stdout=subprocess.DEVNULL)
+                print("Server Created.")
+                
+            else:
+                print("No precompiled binaries found.")
 
     def exit(self):
         if self._server != None:
@@ -109,7 +124,7 @@ class Controller():
         port = "2222"
         ptypes = "0111"
 
-        self._model.create_server(port, password, playertypes=ptypes)
+        self._model.create_server(port, password, ptypes)
 
     # ensure we exit only after cleaning up
     def game_exit(self):
