@@ -15,7 +15,7 @@ class Model(object):
     # compiles and creates the server
     def create_server(self, port, password, playertypes, recompile=False):
 
-        # create args
+        # create make args
         args = ["make", "server"]
         if recompile:
             args.append("-B")
@@ -30,26 +30,21 @@ class Model(object):
         except:
             print("Make not found. Searching for precompiled binaries.")
             
-        # create server
+        # create server args
         if os.name == "nt":
-                            
-            if os.path.exists("server.exe"):
-                self._server = subprocess.Popen(["server.exe", port, password, playertypes])
-                print("Server Created.")
-                
-            else:
-                print("No precompiled binaries found.")
+            srvargs = ["server.exe", port, password, playertypes]
                 
         else: # this should be the same for many other os
+            srvargs = ["./server", port, password, playertypes]
+            
+        # create server
+        if os.path.exists(srvargs[0]):
+            self._server = subprocess.Popen(srvargs, stdout=subprocess.DEVNULL)
+            print("Server Created.")
+            
+        else:
+            print("No precompiled binaries found.")
         
-            if os.path.exists("server"):
-                self._server = subprocess.Popen(["./server", port, password, playertypes],
-                        stdout=subprocess.DEVNULL)
-                print("Server Created.")
-                
-            else:
-                print("No precompiled binaries found.")
-
     def exit(self):
         if self._server != None:
             self._server.terminate()
