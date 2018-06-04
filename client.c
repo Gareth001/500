@@ -48,9 +48,12 @@ int main(int argc, char** argv) {
         char* message = malloc(BUFFER_LENGTH * sizeof(char));
         sprintf(message, "%s\n", argv[3]);
         write_new(fileDes, message, strlen(message));
+        free(message);
 
     }
 
+    //char* result;
+    
     // read yes from server, otherwise exit
     if (strcmp(read_from_fd(fileDes, BUFFER_LENGTH), "yes") != 0) {
         // exit
@@ -65,6 +68,7 @@ int main(int argc, char** argv) {
         char* message = malloc(BUFFER_LENGTH * sizeof(char));
         sprintf(message, "%s\n", argv[4]);
         write_new(fileDes, message, strlen(message));
+        free(message);
 
     }
 
@@ -333,8 +337,8 @@ void play_round(int fileDes) {
 
         }
 
-        // get number of tricks betting team has won
-        fprintf(stdout, "%s\n", read_from_fd(fileDes, BUFFER_LENGTH));
+        // get number of tricks betting team has won, extra \n for readability
+        fprintf(stdout, "%s\n\n", read_from_fd(fileDes, BUFFER_LENGTH));
 
     }
 

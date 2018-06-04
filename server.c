@@ -109,7 +109,9 @@ int main(int argc, char** argv) {
     game.p = 0;
     game.start = 0;
     game.player = malloc(NUM_PLAYERS * sizeof(Player));
-    game.teamPoints = malloc(2 * sizeof(Player));
+    game.teamPoints = malloc(2 * sizeof(int));
+    game.teamPoints[0] = 0; // set these values!! 
+    game.teamPoints[1] = 0;
 
     // get playertypes string
     if (argc == 4) {

@@ -381,6 +381,9 @@ Card get_card_from_bot(GameInfo* game, int cards) {
 
     }
 
+    free(deckSplit);
+    free(suitCount);
+    
     return card;
 
 }
