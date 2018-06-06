@@ -43,19 +43,19 @@ int main(int argc, char** argv) {
     // establish a connection to given port
     int fileDes = connect_to(ipAddress, port);
 
+    // buffer, will be reused
+    char* message = malloc(BUFFER_LENGTH * sizeof(char));
+
     // send the password
     {
-        char* message = malloc(BUFFER_LENGTH * sizeof(char));
         sprintf(message, "%s\n", argv[3]);
         write_new(fileDes, message, strlen(message));
-        free(message);
 
     }
-
-    //char* result;
     
     // read yes from server, otherwise exit
-    if (strcmp(read_from_fd(fileDes, BUFFER_LENGTH), "yes") != 0) {
+    read_from_fd(fileDes, message, BUFFER_LENGTH, false);
+    if (strcmp(message, "yes") != 0) {
         // exit
         fprintf(stderr, "Auth failed\n");
         close(fileDes);
@@ -65,15 +65,14 @@ int main(int argc, char** argv) {
 
     // send player name
     {
-        char* message = malloc(BUFFER_LENGTH * sizeof(char));
         sprintf(message, "%s\n", argv[4]);
         write_new(fileDes, message, strlen(message));
-        free(message);
 
     }
 
     // check if server sent yes, otherwise invalid username
-    if (strcmp(read_from_fd(fileDes, BUFFER_LENGTH), "yes") != 0) {
+    read_from_fd(fileDes, message, BUFFER_LENGTH, false);
+    if (strcmp(message, "yes") != 0) {
         // exit
         fprintf(stderr, "Invalid username\n");
 
@@ -86,15 +85,15 @@ int main(int argc, char** argv) {
     fprintf(stdout, "Connected successfully! Waiting for others\n");
 
     // receive start from server
-    read_from_fd(fileDes, BUFFER_LENGTH);
+    read_from_fd(fileDes, message, BUFFER_LENGTH, false);
 
     // tell them yes, we are still here
     write_new(fileDes, "yes\n", 4);
 
     // receive start from server which lets us know everyone is here
     // server will either send start\n or something else
-
-    if (strcmp(read_from_fd(fileDes, BUFFER_LENGTH), "start") != 0) {
+    read_from_fd(fileDes, message, BUFFER_LENGTH, false);
+    if (strcmp(message, "start") != 0) {
         // exit
         fprintf(stderr, "Unexpected exit\n");
 
@@ -106,6 +105,7 @@ int main(int argc, char** argv) {
 
     // take us to the game!
     fprintf(stdout, "All players connected!\n");
+    free(message);
 
     // get player details here, we only want to do this once per game
     get_player_details(fileDes);
@@ -118,11 +118,13 @@ int main(int argc, char** argv) {
 // game loop.
 void game_loop(int fileDes) {
     
+    char* message = malloc(BUFFER_LENGTH * sizeof(char));
+   
     // loop until a team gets to 500 points (or -500 points)
     while (1) {
         // print out all the cards from the server
-        fprintf(stdout, "Game starting!\nYour hand: %s\n",
-                read_from_fd(fileDes, BUFFER_LENGTH));
+        read_from_fd(fileDes, message, BUFFER_LENGTH, false);
+        fprintf(stdout, "Game starting!\nYour hand: %s\n", message);
 
         fprintf(stdout, "Betting round starting\n");
 
@@ -147,19 +149,20 @@ void game_loop(int fileDes) {
         play_round(fileDes);
         
         // get final result of the game
-        fprintf(stdout, "%s\n", read_from_fd(fileDes, BUFFER_LENGTH));
+        read_from_fd(fileDes, message, BUFFER_LENGTH, false);
+        fprintf(stdout, "%s\n", message);
         
         // get total points for both teams
         // points for my team
-        fprintf(stdout, "Your teams points: %s\n",
-                read_from_fd(fileDes, BUFFER_LENGTH));
+        read_from_fd(fileDes, message, BUFFER_LENGTH, false);
+        fprintf(stdout, "Your teams points: %s\n", message);
         // points for other team
-        fprintf(stdout, "Other teams points: %s\n",
-                read_from_fd(fileDes, BUFFER_LENGTH));
+        read_from_fd(fileDes, message, BUFFER_LENGTH, false);
+        fprintf(stdout, "Other teams points: %s\n", message);
                 
         // see if game has ended or not (one team on |500| points)
-        char* result = read_from_fd(fileDes, BUFFER_LENGTH);
-        if (strcmp(result, "endgame") == 0) { 
+        read_from_fd(fileDes, message, BUFFER_LENGTH, false);
+        if (strcmp(message, "endgame") == 0) { 
             // game is over, break from loop
             break;
             
@@ -168,6 +171,7 @@ void game_loop(int fileDes) {
     }
     
     // game finally over
+    free(message);
     fprintf(stdout, "Game over!\n");
     close(fileDes);
     exit(0);
@@ -178,23 +182,26 @@ void game_loop(int fileDes) {
 void get_player_details(int fileDes) {
     // here we first receive all the players names in the game from the server.
     fprintf(stdout, "Players Connected:\n");
+    char* result = malloc(BUFFER_LENGTH * sizeof(char));
 
     for (int i = 0; i < 4; i++) {
         // print the players details from the server
-        fprintf(stdout, "%s\n", read_from_fd(fileDes, BUFFER_LENGTH));
-
-        // send yes to server, to tell them we got it
-        write_new(fileDes, "yes\n", 4);
+        read_from_fd(fileDes, result, BUFFER_LENGTH, false);
+        fprintf(stdout, "%s\n", result);
 
     }
+
+    free(result);
 
 }
 
 // handles the betting round for this player
 void bet_round(int fileDes) {
+    char* result = malloc(BUFFER_LENGTH * sizeof(char));
+
     while (1) {
         // server will either send bet or info they will print out or betover
-        char* result = read_from_fd(fileDes, BUFFER_LENGTH);
+        read_from_fd(fileDes, result, BUFFER_LENGTH, false);
 
         if (strcmp(result, "bet") == 0) {
             fprintf(stdout, "Your bet: ");
@@ -225,18 +232,23 @@ void bet_round(int fileDes) {
     }
 
     // result from betting round here
-    fprintf(stdout, "%s\n", read_from_fd(fileDes, BUFFER_LENGTH));
+    read_from_fd(fileDes, result, BUFFER_LENGTH, false);
+    fprintf(stdout, "%s\n", result);
+    free(result);
 
 }
 
 // handles the kitty round
 void kitty_round(int fileDes) {
+    char* result = malloc(BUFFER_LENGTH * sizeof(char));
+
     while (1) {
-        char* result = read_from_fd(fileDes, BUFFER_LENGTH); // kitty stuff
+        read_from_fd(fileDes, result, BUFFER_LENGTH, false); // kitty stuff
 
         if (strcmp(result, "send") == 0) {
             // get string of how many cards remain
-            fprintf(stdout, "%s: ", read_from_fd(fileDes, BUFFER_LENGTH));
+            read_from_fd(fileDes, result, BUFFER_LENGTH, false);
+            fprintf(stdout, "%s: ", result);
             fflush(stdout);
 
             // send input from user
@@ -260,12 +272,16 @@ void kitty_round(int fileDes) {
 
     }
 
+    free(result);
+
 }
 
 // handles the joker round
 void joker_round(int fileDes) {
+    char* result = malloc(BUFFER_LENGTH * sizeof(char));
+
     while (1) {
-        char* result = read_from_fd(fileDes, BUFFER_LENGTH); // joker stuff
+        read_from_fd(fileDes, result, BUFFER_LENGTH, false); // joker stuff
 
         if (strcmp(result, "jokerwant") == 0) {
             // print to user that we want the joker
@@ -290,29 +306,34 @@ void joker_round(int fileDes) {
         }
 
     }
+
+    free(result);
     
 }
 
 // handles the play round
 void play_round(int fileDes) {
+    char* result = malloc(BUFFER_LENGTH * sizeof(char));
+
     while (1) {
 
         // get message from server
-        char* msg = read_from_fd(fileDes, BUFFER_LENGTH);
-        if (strcmp(msg, "gameover") == 0) {
+        read_from_fd(fileDes, result, BUFFER_LENGTH, false);
+        if (strcmp(result, "gameover") == 0) {
             break;
             
         }
     
         // get hand from server
-        fprintf(stdout, "Your hand: %s\n",
-                read_from_fd(fileDes, BUFFER_LENGTH));
+        read_from_fd(fileDes, result, BUFFER_LENGTH, false);
+        fprintf(stdout, "Your hand: %s\n", result);
 
         // get round number from server
-        fprintf(stdout, "%s\n", read_from_fd(fileDes, BUFFER_LENGTH));
+        read_from_fd(fileDes, result, BUFFER_LENGTH, false);
+        fprintf(stdout, "%s\n", result);
 
         while (1) {
-            char* result = read_from_fd(fileDes, BUFFER_LENGTH);
+            read_from_fd(fileDes, result, BUFFER_LENGTH, false);
 
             if (strcmp("send", result) == 0) {
                 // send card to server
@@ -338,9 +359,12 @@ void play_round(int fileDes) {
         }
 
         // get number of tricks betting team has won, extra \n for readability
-        fprintf(stdout, "%s\n\n", read_from_fd(fileDes, BUFFER_LENGTH));
+        read_from_fd(fileDes, result, BUFFER_LENGTH, false);
+        fprintf(stdout, "%s\n\n", result);
 
     }
+
+    free(result);
 
 }
 

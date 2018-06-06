@@ -74,6 +74,7 @@ char* return_card(Card card) {
                 ret[0] = '1';
                 ret[1] = '0';
                 ret[2] = return_trump_char(card.suit);
+                ret[3] = '\0';
                 return ret;
 
             case JACK_VALUE:
