@@ -466,6 +466,9 @@ Card get_lowest_non_trump_card(GameInfo* game, int cards) {
 
     }
 
+    free(deckSplit);
+    free(suitCount);
+
     return card;
 
 }
