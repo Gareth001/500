@@ -5,50 +5,7 @@ from tkinter import messagebox
 
 WIDTH = 760
 HEIGHT = 760
-
-class Model(object):
-    def __init__(self):
-
-        # server
-        self._server = None
-
-    # compiles and creates the server
-    def create_server(self, port, password, playertypes, recompile=False):
-
-        # create make args
-        args = ["make", "server"]
-        if recompile:
-            args.append("-B")
-            
-        # try to make
-        try:
-            make = subprocess.Popen(args, stdout=subprocess.DEVNULL)
-            print("compiling")
-            make.wait()
-            print("compiled")
-            
-        except:
-            print("Make not found. Searching for precompiled binaries.")
-            
-        # create server args
-        if os.name == "nt":
-            srvargs = ["server.exe", port, password, playertypes]
-                
-        else: # this should be the same for many other os
-            srvargs = ["./server", port, password, playertypes]
-            
-        # create server
-        if os.path.exists(srvargs[0]):
-            self._server = subprocess.Popen(srvargs, stdout=subprocess.DEVNULL)
-            print("Server Created.")
-            
-        else:
-            print("No precompiled binaries found.")
-        
-    def exit(self):
-        if self._server != None:
-            self._server.terminate()
-            print("server terminated")
+BUFFER_LENGTH = 100
 
 class View(object):
     def __init__(self, master, bindings):
@@ -99,32 +56,74 @@ class Controller():
         master.title("500") # title of window
         self._master = master
 
-        # create model
-        self._model = Model()
-
         # create view
         self._view = View(self._master, [self.join, self.host, self.game_exit])
 
         # kill children on close
         self._master.protocol("WM_DELETE_WINDOW", self.game_exit)
 
+        # server
+        self._server = None
+        self._client = None
+
     # when user presses join
     def join(self):
-        print("join")
         
+        ip = "127.0.0.1"
+        port = "2222"
+        password ="pass"
+        username = "test"
+
+        self.create_client(ip, port, password, username)
+        
+        while True:
+            line = self._client.stdout.readline(BUFFER_LENGTH)
+            print(line)
+
+        self._client.stdin.write(b"PASS\n")
+        self._client.stdin.flush()
+
+
+
     # when user presses host server
     def host(self):
 
-        password = "test"
+        password = "pass"
         port = "2222"
-        ptypes = "0111"
+        ptypes = "0222"
 
-        self._model.create_server(port, password, ptypes)
+        self.create_server(port, password, ptypes)
 
     # ensure we exit only after cleaning up
     def game_exit(self):
-        self._model.exit()
         self._master.destroy()
+
+        if self._server != None:
+            self._server.terminate()
+            print("Server Terminated")
+        if self._server != None:
+            self._client.terminate()
+            print("Client Terminated")
+
+    # creates the server
+    def create_server(self, port, password, playertypes):
+            
+        # create server args
+        srvargs = ["./server", port, password, playertypes]
+            
+        # create server
+        self._server = subprocess.Popen(srvargs, stdout=subprocess.DEVNULL)
+        print("Server Created.")
+
+    # creates the server
+    def create_client(self, ip, port, password, playertypes):
+            
+        # create server args
+        clargs = ["./client", ip, port, password, playertypes]
+            
+        # create server
+        self._client = subprocess.Popen(clargs, stdin = subprocess.PIPE, stdout = subprocess.PIPE)
+        print("Client Created.")
 
 if __name__ == '__main__':
     root = tkinter.Tk()
