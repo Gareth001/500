@@ -20,14 +20,22 @@ void kitty_round(int fileDes);
 void joker_round(int fileDes);
 void play_round(int fileDes);
 
+// whether or not to send newline after asking input
+static bool alwaysnewline = false;
+
 //Test comment, James is in da house. Memes 2.00 This will work surely
 // main
 int main(int argc, char** argv) {
 
     // argument checking
-    if (argc != 5) {
-        fprintf(stderr, "Usage: client ipaddress port password username\n");
+    if (argc != 5 && argc != 6) {
+        fprintf(stderr, "Usage: client ipaddress port password username [alwaysnewline]\n");
         return 1;
+
+    }
+
+    if (argc == 6 && argv[5][0] == '1') {
+        alwaysnewline = true;
 
     }
 
@@ -82,7 +90,7 @@ int main(int argc, char** argv) {
 
     }
 
-    fprintf(stderr, "Connected successfully! Waiting for others\n");
+    fprintf(stdout, "Connected successfully! Waiting for others\n");
 
     // receive start from server
     read_from_fd(fileDes, message, BUFFER_LENGTH, false);
@@ -205,7 +213,12 @@ void bet_round(int fileDes) {
 
         if (strcmp(result, "bet") == 0) {
             fprintf(stdout, "Your bet: ");
+            if (alwaysnewline) {
+                fprintf(stdout, "\n");
+
+            }
             fflush(stdout);
+
             // send a bet from the player input
             send_input(fileDes);
 
@@ -249,6 +262,10 @@ void kitty_round(int fileDes) {
             // get string of how many cards remain
             read_from_fd(fileDes, result, BUFFER_LENGTH, false);
             fprintf(stdout, "%s: ", result);
+            if (alwaysnewline) {
+                fprintf(stdout, "\n");
+
+            }
             fflush(stdout);
 
             // send input from user
@@ -286,6 +303,10 @@ void joker_round(int fileDes) {
         if (strcmp(result, "jokerwant") == 0) {
             // print to user that we want the joker
             fprintf(stdout, "Choose joker suit: ");
+            if (alwaysnewline) {
+                fprintf(stdout, "\n");
+
+            }
             fflush(stdout);
             send_input(fileDes);
 
@@ -338,6 +359,10 @@ void play_round(int fileDes) {
             if (strcmp("send", result) == 0) {
                 // send card to server
                 fprintf(stdout, "Choose card to play: ");
+                if (alwaysnewline) {
+                    fprintf(stdout, "\n");
+
+                }
                 fflush(stdout);
                 send_input(fileDes);
 

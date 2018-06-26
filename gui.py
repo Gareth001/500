@@ -80,9 +80,12 @@ class Controller():
             line = self._client.stdout.readline(BUFFER_LENGTH)
             print(line)
 
-        self._client.stdin.write(b"PASS\n")
-        self._client.stdin.flush()
+            if line == b'':
+                break
 
+            if line == b'Your bet: \r\n':
+                self._client.stdin.write(b"PASS\n")
+                self._client.stdin.flush()
 
 
     # when user presses host server
@@ -119,7 +122,8 @@ class Controller():
     def create_client(self, ip, port, password, playertypes):
             
         # create server args
-        clargs = ["./client", ip, port, password, playertypes]
+        # note optional client argument given
+        clargs = ["./client", ip, port, password, playertypes, "1"] 
             
         # create server
         self._client = subprocess.Popen(clargs, stdin = subprocess.PIPE, stdout = subprocess.PIPE)
