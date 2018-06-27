@@ -425,7 +425,7 @@ void bet_round(GameInfo* game) {
     char* msg = malloc(BUFFER_LENGTH * sizeof(char));
     msg[0] = '\0';
     if (game->open == true) {
-        sprintf(msg, "Player %d won the bet with open misere!\n", game->p);
+        sprintf(msg, "Player %d won the bet with openmisere!\n", game->p);
         game->suit = NOTRUMPS; // set suit of gameplay to no trumps
 
     } else if (game->misere == true) {
@@ -925,7 +925,7 @@ char* get_valid_bet_from_player(GameInfo* game, char* send, int* pPassed) {
 
             } else if (game->misere == true) {
                 send_to_player(game->p, game,
-                        "Player has already bet misere\n");
+                        "A player has already bet misere\n");
 
             } else {
                 send_to_player(game->p, game,
@@ -943,12 +943,12 @@ char* get_valid_bet_from_player(GameInfo* game, char* send, int* pPassed) {
                 game->suit = DIAMONDS;
                 game->misere = true;
                 game->open = true;
-                sprintf(send, "Player %d bet open misere\n", game->p);
+                sprintf(send, "Player %d bet openmisere\n", game->p);
                 break;
 
             } else if (game->open == true) {
                 send_to_player(game->p, game,
-                        "Player has already bet open misere\n");
+                        "A player has already bet openmisere\n");
 
             } else {
                 send_to_player(game->p, game, "Bet not high enough\n");
