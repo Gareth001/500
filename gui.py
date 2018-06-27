@@ -54,6 +54,31 @@ class View(object):
     def help(self, event):
         messagebox.showinfo("Help", "Welcome to 500")
 
+# returns list representation of a string bet
+# list has one element for misere
+def string_to_bet(string):
+    ret = []
+    if len(string) == 2 or len(string) == 3:
+        # put first 1 or 2 chars in first element
+        ret.append(string[0:-1])
+
+        ret.append(letter_to_suit(string[-1]))
+        
+    return str(ret[0]) + ' ' + str(ret[1])
+
+# returns readable form of the lettered suit 
+def letter_to_suit(letter):
+    if letter == 'S':
+        return "Spades"
+    elif letter == 'C':
+        return "Clubs"
+    elif letter == 'D':
+        return "Diamonds"
+    elif letter == 'H':
+        return "Hearts"
+    elif letter == 'N':
+        return "No Trumps"
+
 class Controller():
     def __init__(self, master):
         master.title("500") # title of window
@@ -146,7 +171,7 @@ class Controller():
                         bet_winner = int(bet[0])
                         winning_bet = bet[5][:-1]
                         
-                        print("player {0} won the bet with {1}".format(bet_winner, winning_bet))
+                        print("player {0} won the bet with {1}".format(bet_winner, string_to_bet(winning_bet)))
                         break
 
                     # case a player bet
@@ -158,7 +183,7 @@ class Controller():
 
                         if len(bet) == 3:
                             # player bet[0] bet something or misere or openmisere
-                            print("player {0} bet {1}".format(bet[0], bet[2]))
+                            print("player {0} bet {1}".format(bet[0], string_to_bet(bet[2])))
 
                         elif len(bet) == 2: 
                             print("player {0} passed".format(bet[0]))
