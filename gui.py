@@ -94,19 +94,11 @@ class Controller():
         self._server = None
         self._client = None
 
-    # when user presses join
-    def join(self):
-        
-        ip = "127.0.0.1"
-        port = "2222"
-        password ="pass"
-        username = "test"
+        # game details
+        self._players = []
+        self._player = 0
 
-        self.create_client(ip, port, password, username)
-        
-        players = []
-        player = 0
-
+    def game_loop(self):
         # game loop
         while True:
             line = self._client.stdout.readline(BUFFER_LENGTH)
@@ -133,12 +125,12 @@ class Controller():
                     # check if this player is us
                     if re.search(r' \(You\)$', name) != None:
                         name = re.sub(r' \(You\)$', '', name)
-                        player = i
+                        self._player = i
 
                     # remove teammate tag
                     name = re.sub(r' \(Teammate\)$', '', name)
 
-                    players.append({"name" : name})
+                    self._players.append({"name" : name})
 
                 # next line is always 'Game starting!'
                 self._client.stdout.readline(BUFFER_LENGTH)
@@ -150,10 +142,10 @@ class Controller():
                 name = re.sub(r'^.*: ', '', str(name)[0:-1])
 
                 # split into cards and save as our deck
-                players[player]["deck"] = name.split(' ')
+                self._players[self._player]["deck"] = name.split(' ')
 
                 # print all details                
-                print("Playerid:{0}, Players:{1}".format(player, players))
+                print("Playerid:{0}, Players:{1}".format(self._player, self._players))
 
             # betting round
             elif line == b'Betting round starting' + NEWLINE:
@@ -201,6 +193,18 @@ class Controller():
                     # bet was a failure ( this should be in Your bet)
                     else:
                         print(str(bet))
+
+    # when user presses join
+    def join(self):
+        
+        ip = "127.0.0.1"
+        port = "2222"
+        password ="pass"
+        username = "test"
+
+        self.create_client(ip, port, password, username)
+
+        self.game_loop()
 
     # when user presses host server
     def host(self):
