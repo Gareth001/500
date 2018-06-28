@@ -1,12 +1,12 @@
-import subprocess
 import os
 import re
 import sys
+import enum
+from enum import Enum
+import subprocess
 from multiprocessing import Process, Pipe
 import tkinter
 from tkinter import messagebox
-from enum import Enum
-import enum
 
 WIDTH = 760
 HEIGHT = 760
@@ -92,6 +92,9 @@ class MsgType(Enum):
     BETOURS = enum.auto()
     BETFAILED = enum.auto()
     BETWON = enum.auto()
+    KITTYDECK = enum.auto()
+    KITTYCHOOSE = enum.auto()
+    KITTYEND = enum.auto()
 
 # creates client subprocess and interacts with parent (Controller) process
 # through the given conn pipe
@@ -204,23 +207,19 @@ class Client():
                 bet[0] = int(bet[0])
 
                 if len(bet) == 3:
-                    # player bet[0] bet something or misere or openmisere
-
+                    # player bet something or misere or openmisere
                     # send the bet to parent
                     self.send_to_parent({"type" : MsgType.BETINFO, "player" : bet[0], 
                             "bet" : bet[2]})
 
                 elif len(bet) == 2: 
                     # player must have passed
-                    print("player {0} passed".format(bet[0]))
-
                     # send the bet to parent
                     self.send_to_parent({"type" : MsgType.BETINFO, "player" : bet[0], 
                             "bet" : "PASS"})
 
             # case our bet
             elif bet == 'Your bet: ':
-                print("our bet")
 
                 # tell parent we're waiting on their bet
                 self.send_to_parent({"type" : MsgType.BETOURS})
@@ -229,18 +228,51 @@ class Client():
                 ourbet = self.get_from_parent().encode('utf-8')
                 print("sending bet: " + str(ourbet))
                 
-                # send message
+                # send message to our client
                 self.send_to_client(ourbet)
 
             elif bet == 'Everyone passed. Game restarting.':
                 # TODO case everyone passed
-                print('everyone passed')
+                print('everyone passed, disaster!')
 
             # bet was a failure (i.e. bet too low)
             else:
                 # tell parent bet failed and send it to them
                 self.send_to_parent({"type" : MsgType.BETFAILED, "message" : bet})
                 print(bet)
+
+    # kitty loop
+    def kitty(self):
+        while True:
+            line = self.read_line()
+
+            # line is either 'Kitty finished' or like '^You won!' or like '^Pick x more'
+            # or an error message (which should be impossible!)
+            if line == 'Kitty finished':
+                # tell parent kitty is finished
+                self.send_to_parent({"type" : MsgType.KITTYEND})
+                break
+                
+            elif re.search(r'^You Won!', line):
+
+                # remove everything before the ': '
+                line = re.sub(r'^.*: ', '', line)
+
+                # this line contains our new hand
+                # send the server this new deck (note it's sorted so send it all)
+                self.send_to_parent({"type" : MsgType.KITTYDECK,
+                        "deck" : line.split()})
+
+            elif re.search(r'^Pick ', line):
+
+                # this line contains the amount of cards we still have to discard
+                # ask parent for a card for kitty and send amount remaining
+                self.send_to_parent({"type" : MsgType.KITTYCHOOSE,
+                        "remaining" : int(line.split(' ')[1])})
+
+                # get card from parent and send it 
+                ourbet = self.get_from_parent().encode('utf-8')
+                self.send_to_client(ourbet)
 
     # loop 
     def game_loop(self):
@@ -263,6 +295,10 @@ class Client():
             # betting round
             elif line == 'Betting round starting':
                 self.bet_round()
+
+            # kitty choosing round
+            elif line == 'Waiting for Kitty':
+                self.kitty()
 
 # not a traditional MVC application, the model is run on a different process and 
 # interacts with the controller through a pipe
@@ -288,7 +324,8 @@ class Controller():
 
     # check for new input from our Client regularly
     # this means that our GUI is not being blocked for waiting
-    # also note that multiprocess poll is not the same as subprocess poll
+    # also note that multiprocess poll is not the same as subprocess poll,
+    # hence the need for Client on seperate process
     def handle_client_input(self):
 
         # poll if we have input from Client
@@ -313,7 +350,7 @@ class Controller():
         password ="pass"
         username = "test"
 
-        # this call is blocking if the game_loop method is in our controller
+        # this call is blocking if the game_loop method is in our controller class!
         self._client = Process(target=Client, args=([ip, port, password, username], child_conn,))
         self._client.start()
 
