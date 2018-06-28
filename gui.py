@@ -1,16 +1,18 @@
 import subprocess
 import os
-import tkinter
-from tkinter import messagebox
 import re
 import sys
 from multiprocessing import Process, Pipe
-import time
+import tkinter
+from tkinter import messagebox
+from enum import Enum
+import enum
 
 WIDTH = 760
 HEIGHT = 760
-BUFFER_LENGTH = 100
-NEWLINE = os.linesep.encode('utf-8')
+BUFFER_LENGTH = 100 # length of buffer for client process
+NEWLINE = os.linesep.encode('utf-8') # newline for this operating system (bytes)
+POLL_DELAY = 50 # milliseconds to wait until checking for new data
 
 class View(object):
     def __init__(self, master, bindings):
@@ -54,11 +56,11 @@ class View(object):
         
     # show help
     def help(self, event):
-        messagebox.showinfo("Help", "Welcome to 500")
+        #messagebox.showinfo("Help", "Welcome to 500")
         self._bindings[3]("PASS")
 
-# returns list representation of a string bet
-# list has one element for misere
+# returns string representation of a bet
+# TODO: Misere
 def string_to_bet(string):
     ret = []
     if len(string) == 2 or len(string) == 3:
@@ -82,7 +84,18 @@ def letter_to_suit(letter):
     elif letter == 'N':
         return "No Trumps"
 
-# connection pipe to parent process (Controller)
+# communication between Client and Controller, data sent depends on "type" property
+# this can take the following values
+class MsgType(Enum):
+    PLAYER = enum.auto()
+    BETINFO = enum.auto()
+    BETOURS = enum.auto()
+    BETFAILED = enum.auto()
+    BETWON = enum.auto()
+
+# creates client subprocess and interacts with parent (Controller) process
+# through the given conn pipe
+# args are arguments for running client
 class Client():
     def __init__(self, args, conn):
 
@@ -93,13 +106,12 @@ class Client():
         self._players = []
         self._player = 0
 
-        # create client args
-        # note optional client argument given (the "1")
+        # create client args, note optional client argument given (the "1")
         clargs = ["./client"]
         clargs.extend(args)
         clargs.append("1")
 
-        # create server
+        # create server, piping stdinin and stdout
         self._client = subprocess.Popen(clargs, stdin = subprocess.PIPE, stdout = subprocess.PIPE)
         print("Client Created.")
 
@@ -114,17 +126,27 @@ class Client():
     def get_from_parent(self):
         return self._conn.recv()
 
+    # returns string of line from client (blocking)
+    def read_line(self):
+        ret = self._client.stdout.readline(BUFFER_LENGTH)[:-len(NEWLINE)]
+        ret.decode(sys.stdout.encoding)
+        # remove b'' from string and return
+        return str(ret)[2:-1]
+
+    def send_to_client(self, line):
+        self._client.stdin.write(line + NEWLINE)
+        self._client.stdin.flush()
+
     # gets game data from client and sends it to parent
     def get_game_data(self):
 
         # these four lines are the players names
         for i in range(0, 4):
             # read ith players name, removing newline
-            name = self._client.stdout.readline(BUFFER_LENGTH)[:-len(NEWLINE)]
-            name.decode(sys.stdout.encoding)
+            name = self.read_line()
 
             # remove text before first comma and newline
-            name = ', '.join(str(name)[:-1].split(', ')[1:])
+            name = ', '.join(name.split(', ')[1:])
         
             # check if this player is us
             if re.search(r' \(You\)$', name) != None:
@@ -137,98 +159,115 @@ class Client():
             self._players.append({"name" : name})
 
         # next line is always 'Game starting!'
-        self._client.stdout.readline(BUFFER_LENGTH)
-
+        self.read_line()
+        
         # our deck is next
-        name = self._client.stdout.readline(BUFFER_LENGTH)[:-len(NEWLINE)]
+        deck = self.read_line()
 
         # remove beginning text
-        name = re.sub(r'^.*: ', '', str(name)[0:-1])
+        deck = re.sub(r'^.*: ', '', deck)
 
         # split into cards and save as our deck
-        self._players[self._player]["deck"] = name.split(' ')
+        self._players[self._player]["deck"] = deck.split(' ')
 
         # send details to parent
-        self.send_to_parent({"players" : self._players, "player" : self._player})
+        self.send_to_parent({"players" : self._players, "player" : self._player,
+                "type" : MsgType.PLAYER})
 
     # completes bet round for the client
     def bet_round(self):
-        # loop
+        # loop until betting round over
         while True:
-            bet = self._client.stdout.readline(BUFFER_LENGTH)[:-len(NEWLINE)]
-            bet = bet.decode(sys.stdout.encoding)
+            bet = self.read_line()
             
             # case bet ending
             if re.search(r'won', bet):
 
                 # getting winning player and their bet
-                bet = re.sub(r'^Player ', '', str(bet))
+                bet = re.sub(r'^Player ', '', bet)
                 bet = bet.split(' ')
 
                 bet_winner = int(bet[0])
-                winning_bet = bet[5][:-1]
-                
-                print("player {0} won the bet with {1}".format(bet_winner, string_to_bet(winning_bet)))
+                winning_bet = bet[5][:-1] # remove exclamation mark
+
+                # send bet winner to parent
+                self.send_to_parent({"bet" : winning_bet,
+                        "player" : bet_winner, "type" : MsgType.BETWON})
+
                 break
 
             # case a player bet
             elif re.search(r'^Player ', bet):
                 # get our players bet
-                bet = re.sub(r'^Player ', '', str(bet))
+                bet = re.sub(r'^Player ', '', bet)
                 bet = bet.split(' ')
                 bet[0] = int(bet[0])
 
                 if len(bet) == 3:
                     # player bet[0] bet something or misere or openmisere
-                    print("player {0} bet {1}".format(bet[0], string_to_bet(bet[2])))
+
+                    # send the bet to parent
+                    self.send_to_parent({"type" : MsgType.BETINFO, "player" : bet[0], 
+                            "bet" : bet[2]})
 
                 elif len(bet) == 2: 
+                    # player must have passed
                     print("player {0} passed".format(bet[0]))
+
+                    # send the bet to parent
+                    self.send_to_parent({"type" : MsgType.BETINFO, "player" : bet[0], 
+                            "bet" : "PASS"})
 
             # case our bet
             elif bet == 'Your bet: ':
                 print("our bet")
 
-                bet = self.get_from_parent().encode('utf-8')
+                # tell parent we're waiting on their bet
+                self.send_to_parent({"type" : MsgType.BETOURS})
 
-                print(str(bet))
+                # encode our bet to bytes
+                ourbet = self.get_from_parent().encode('utf-8')
+                print("sending bet: " + str(ourbet))
                 
-                self._client.stdin.write(bet + NEWLINE)
-                self._client.stdin.flush()
+                # send message
+                self.send_to_client(ourbet)
 
             elif bet == 'Everyone passed. Game restarting.':
+                # TODO case everyone passed
                 print('everyone passed')
 
-            # bet was a failure ( this should be in Your bet)
+            # bet was a failure (i.e. bet too low)
             else:
-                print(str(bet))
+                # tell parent bet failed and send it to them
+                self.send_to_parent({"type" : MsgType.BETFAILED, "message" : bet})
+                print(bet)
 
     # loop 
     def game_loop(self):
         while True:
-            line = self._client.stdout.readline(BUFFER_LENGTH)
+            line = self.read_line()
             print(line)
 
             # early exit
-            if line == b'':
+            if line == '':
                 break
 
             # waiting for others
-            elif line == b'Connected successfully! Waiting for others' + NEWLINE:
+            elif line == 'Connected successfully! Waiting for others':
                 print("waiting for others")
 
             # giving all player details now
-            elif line == b'Players Connected:' + NEWLINE:
+            elif line == 'Players Connected:':
                 self.get_game_data()
 
             # betting round
-            elif line == b'Betting round starting' + NEWLINE:
+            elif line == 'Betting round starting':
                 self.bet_round()
-                
+
 # not a traditional MVC application, the model is run on a different process and 
 # interacts with the controller through a pipe
-# this must be done since interacting with subprocess requires blocking calls
-# and the UI must be kept responsive.
+# this must be done since interacting with the client subprocess requires blocking calls
+# and the UI must be kept responsive
 class Controller():
     def __init__(self, master):
         master.title("500") # title of window
@@ -240,11 +279,27 @@ class Controller():
         # kill children on close
         self._master.protocol("WM_DELETE_WINDOW", self.game_exit)
 
-        # server
+        # child processes
         self._server = None
+        self._client = None
 
         # connection to child
         self.parent_conn = None
+
+    # check for new input from our Client regularly
+    # this means that our GUI is not being blocked for waiting
+    # also note that multiprocess poll is not the same as subprocess poll
+    def handle_client_input(self):
+
+        # poll if we have input from Client
+        if self.parent_conn.poll():
+            data = self.recieve_from_client()
+            print(data)
+
+            # now interact with GUI depending on message type
+
+        # repeat 
+        self._master.after(POLL_DELAY, self.handle_client_input)
 
     # when user presses join
     def join(self):
@@ -259,19 +314,18 @@ class Controller():
         username = "test"
 
         # this call is blocking if the game_loop method is in our controller
-        p = Process(target=Client, args=([ip, port, password, username], child_conn,))
-        p.start()
+        self._client = Process(target=Client, args=([ip, port, password, username], child_conn,))
+        self._client.start()
 
-        # get all player details
-        print(self.recieve_from_client())
+        # check for new data sent by Client in regular intervals
+        self._master.after(POLL_DELAY, self.handle_client_input)
 
-    # sends data to the client
-    # must be a string
+    # sends data to the client, must be a string (non blocking)
     def send_to_client(self, data):
         if self.parent_conn != None:
             self.parent_conn.send(data)
 
-    # recieves data from client
+    # recieves data from client (blocking)
     def recieve_from_client(self):
         if self.parent_conn != None:
             return self.parent_conn.recv()
@@ -281,6 +335,7 @@ class Controller():
     # when user presses host server
     def host(self):
 
+        # temp details
         password = "pass"
         port = "2222"
         ptypes = "2022"
@@ -294,6 +349,10 @@ class Controller():
         if self._server != None:
             self._server.terminate()
             print("Server Terminated")
+
+        if self._client != None:
+            self._client.terminate()
+            print("Client Terminated")
 
     # creates the server
     def create_server(self, port, password, playertypes):
