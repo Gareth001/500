@@ -5,10 +5,11 @@ import enum
 from aenum import Enum, AutoNumberEnum # pip3 install aenum
 import subprocess
 from multiprocessing import Process, Pipe
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QStackedWidget, QFormLayout, QComboBox
+from PyQt5.QtWidgets import (QApplication, QWidget, QPushButton,
+        QStackedWidget, QFormLayout, QHBoxLayout, QComboBox, QLabel, QVBoxLayout)
 from PyQt5 import QtCore # pip3 install pyqt5
 
-WIDTH = 900
+WIDTH = 830
 HEIGHT = 900
 BUFFER_LENGTH = 100 # length of buffer for client process
 NEWLINE = os.linesep.encode('utf-8') # newline for this operating system (bytes)
@@ -53,16 +54,16 @@ def suit_to_letter(suit):
         return "N"
 
 # communication between Client and Controller, data sent depends on "type" property
-# this can take the following values
+# this can take the following values, where there are the corresponding keys in {}
 class MsgType(AutoNumberEnum):
-    PLAYER = ()
-    BETINFO = ()
-    BETOURS = ()
-    BETFAILED = ()
-    BETWON = ()
-    KITTYDECK = ()
-    KITTYCHOOSE = ()
-    KITTYEND = ()
+    PLAYER = () # player details {players, player}
+    BETINFO = () # bet info {player, bet}
+    BETOURS = () # our bet {}
+    BETFAILED = () # bet failed {message}
+    BETWON = () # a player has won the bet {player, bet}
+    KITTYDECK = () # new deck including the kitty {deck}
+    KITTYCHOOSE = () # choose the kitty cards {remaining}
+    KITTYEND = () # kitty end {}
 
 # creates client subprocess and interacts with parent (Controller) process
 # through the given conn pipe
@@ -276,15 +277,9 @@ class Controller(QWidget):
     def __init__(self):
         super().__init__()
 
-        # create view
-        self.left = 50
-        self.top = 50
-        self.width = WIDTH
-        self.height = HEIGHT
-        self.title = '500'
-        self.setWindowTitle(self.title)
-        self.setGeometry(self.left, self.top, self.width, self.height)
-        self.setFixedSize(self.size())
+        # game details
+        self._player = None
+        self._players = None
 
         # child processes
         self._server = None
@@ -293,12 +288,19 @@ class Controller(QWidget):
         # connection to child
         self.parent_conn = None
 
+        # set graphics properties
+        self.setWindowTitle('500')
+        self.setGeometry(50, 50, WIDTH, HEIGHT)
+        self.setFixedSize(self.size())
+
         # create main menu
         self._main_menu = QWidget()
         self.create_main_menu()
 
         # create game view
         self._game_view = QWidget()
+        self._bet_controls = []
+        self._bet_label = None
         self.create_game_view()
 
         # create stacked layout
@@ -308,7 +310,7 @@ class Controller(QWidget):
 
         self.show()
 
-    # create main menu and add it to layout
+    # create main menu and add it to _main_menu layout
     def create_main_menu(self):
         # create layout
         layout = QFormLayout()
@@ -327,19 +329,31 @@ class Controller(QWidget):
         # add to layout
         self._main_menu.setLayout(layout)
 
+    # creates game view and adds it to _game_view layout
     def create_game_view(self):
-        # create layout
-        layout = QFormLayout()
+        # layout
+        main_layout = QVBoxLayout()
+
+        # placeholder for game UI
+        button = QPushButton('This will be the playing platform', self)
+        button.move(80,20)
+        button.setFixedSize(QtCore.QSize(800, 800))
+        main_layout.addWidget(button)
+
+        # create layout for betting actions
+        layout = QHBoxLayout()
 
         # number bet choice button
         number_bet = QComboBox()
         number_bet.addItems(["6", "7", "8", "9", "10"])
         layout.addWidget(number_bet)
+        self._bet_controls.append(number_bet)
 
         # suit bet choice button
         suit_bet = QComboBox()
         suit_bet.addItems(["Spades", "Clubs", "Diamonds", "Hearts", "No Trumps"])
         layout.addWidget(suit_bet)
+        self._bet_controls.append(suit_bet)
 
         # bet button, sends bet based on what we entered in the choice boxes above
         button = QPushButton('Bet', self)
@@ -347,21 +361,49 @@ class Controller(QWidget):
         button.clicked.connect(lambda: self.send_to_client(number_bet.currentText() +
                 suit_to_letter(suit_bet.currentText())))
         layout.addWidget(button)
+        self._bet_controls.append(button)
 
         # pass button
         button = QPushButton('Pass', self)
         button.move(120,20)
         button.clicked.connect(lambda: self.send_to_client("PASS"))
         layout.addWidget(button)
+        self._bet_controls.append(button)
 
+        # misere button (TODO functionality)
+        button = QPushButton('Bet Misere', self)
+        layout.addWidget(button)
+        self._bet_controls.append(button)
+
+        # open misere button (TODO functionality)
+        button = QPushButton('Bet Open Misere', self)
+        layout.addWidget(button)
+        self._bet_controls.append(button)
+
+        # bet error message
+        self._bet_label = QLabel(self)
+        self._bet_label.setFixedWidth(200)
+        # TODO set to red text
+        layout.addWidget(self._bet_label)
+
+        # disable bet buttons by default
+        self.activate_bet_controls()
 
         # add to layout
-        self._game_view.setLayout(layout)
+        main_layout.addLayout(layout)
+        self._game_view.setLayout(main_layout)
+
+    # toggles button activation
+    # leave bool as None to toggle bet
+    def activate_bet_controls(self, set=None):
+        for elem in self._bet_controls:
+            elem.setEnabled(not elem.isEnabled() if set == None else set)
 
     # check for new input from our Client regularly
     # this means that our GUI is not being blocked for waiting
     # also note that multiprocess poll is not the same as subprocess poll,
     # hence the need for Client on seperate process
+    # see MsgTypes enum for details on message contents
     def handle_client_input(self):
 
         # repeatedly poll if we have input from Client
@@ -369,7 +411,27 @@ class Controller(QWidget):
             data = self.recieve_from_client()
             print(data)
 
-            # now interact with GUI depending on message type
+            # recieve game details
+            if data["type"] is MsgType.PLAYER:
+                self._player = data["player"]
+                self._players = data["players"]
+
+            # enable bet controls on our bet
+            elif data["type"] is MsgType.BETOURS:
+                self.activate_bet_controls(set=True)
+
+            
+            elif data["type"] is MsgType.BETINFO:
+                if data["player"] == self._player:
+                    self._bet_label.setText("")
+
+            # display why the users bet failed
+            elif data["type"] is MsgType.BETFAILED:
+                self._bet_label.setText(data["message"])
+
+            # disable controls after betting is done
+            elif data["type"] is MsgType.BETWON:
+                self.activate_bet_controls(set=False)
 
         # repeat 
         QtCore.QTimer.singleShot(POLL_DELAY, self.handle_client_input)
@@ -418,6 +480,7 @@ class Controller(QWidget):
 
         self.create_server(port, password, ptypes)
 
+    # when user presses the play against bots button
     def play_bots(self):
         self.host()
         self.join()
