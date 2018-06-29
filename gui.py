@@ -2,62 +2,17 @@ import os
 import re
 import sys
 import enum
-from enum import Enum
+from aenum import Enum, AutoNumberEnum # pip3 install aenum
 import subprocess
 from multiprocessing import Process, Pipe
-import tkinter
-from tkinter import messagebox
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QStackedWidget, QFormLayout, QComboBox
+from PyQt5 import QtCore # pip3 install pyqt5
 
-WIDTH = 760
-HEIGHT = 760
+WIDTH = 900
+HEIGHT = 900
 BUFFER_LENGTH = 100 # length of buffer for client process
 NEWLINE = os.linesep.encode('utf-8') # newline for this operating system (bytes)
 POLL_DELAY = 50 # milliseconds to wait until checking for new data
-
-class View(object):
-    def __init__(self, master, bindings):
-        # events to controller
-        self._bindings = bindings
-        self._event = "<ButtonRelease-1>"
-        
-        # main menu frame
-        self._main_menu = tkinter.Frame(master)
-        self._main_menu.pack(expand=True)
-        self._main_menu.focus_set()
-
-        label = tkinter.Label(self._main_menu, text="500 - GUI edition")
-        label.pack(expand=True)
-        
-        # all having the same name is fine
-        button = tkinter.Button(self._main_menu, text="Play")
-        button.bind(self._event, self.join)
-        button.pack(expand=True)
-        
-        button = tkinter.Button(self._main_menu, text="Host & Play")
-        button.bind(self._event, self.host)
-        button.pack(expand=True)
-        
-        button = tkinter.Button(self._main_menu, text="Help")
-        button.bind(self._event, self.help)
-        button.pack(expand=True)
-        
-        # no change of gui needed
-        button = tkinter.Button(self._main_menu, text="Exit")
-        button.bind(self._event, lambda event: self._bindings[2]())
-        button.pack(expand=True)
-        
-    # change gui and execute callback
-    def join(self, event):
-        self._bindings[0]()
-
-    # change gui and execute callback
-    def host(self, event):
-        self._bindings[1]()
-        
-    # show help
-    def help(self, event):
-        #messagebox.showinfo("Help", "Welcome to 500")
-        self._bindings[3]("PASS")
 
 # returns string representation of a bet
 # TODO: Misere
@@ -84,17 +39,30 @@ def letter_to_suit(letter):
     elif letter == 'N':
         return "No Trumps"
 
+# returns lettered suit of the readable bet 
+def suit_to_letter(suit):
+    if suit == 'Spades':
+        return "S"
+    elif suit == 'Clubs':
+        return "C"
+    elif suit == 'Diamonds':
+        return "D"
+    elif suit == 'Hearts':
+        return "H"
+    elif suit == 'No Trumps':
+        return "N"
+
 # communication between Client and Controller, data sent depends on "type" property
 # this can take the following values
-class MsgType(Enum):
-    PLAYER = enum.auto()
-    BETINFO = enum.auto()
-    BETOURS = enum.auto()
-    BETFAILED = enum.auto()
-    BETWON = enum.auto()
-    KITTYDECK = enum.auto()
-    KITTYCHOOSE = enum.auto()
-    KITTYEND = enum.auto()
+class MsgType(AutoNumberEnum):
+    PLAYER = ()
+    BETINFO = ()
+    BETOURS = ()
+    BETFAILED = ()
+    BETWON = ()
+    KITTYDECK = ()
+    KITTYCHOOSE = ()
+    KITTYEND = ()
 
 # creates client subprocess and interacts with parent (Controller) process
 # through the given conn pipe
@@ -304,16 +272,19 @@ class Client():
 # interacts with the controller through a pipe
 # this must be done since interacting with the client subprocess requires blocking calls
 # and the UI must be kept responsive
-class Controller():
-    def __init__(self, master):
-        master.title("500") # title of window
-        self._master = master
+class Controller(QWidget):
+    def __init__(self):
+        super().__init__()
 
         # create view
-        self._view = View(self._master, [self.join, self.host, self.game_exit, self.send_to_client])
-
-        # kill children on close
-        self._master.protocol("WM_DELETE_WINDOW", self.game_exit)
+        self.left = 50
+        self.top = 50
+        self.width = WIDTH
+        self.height = HEIGHT
+        self.title = '500'
+        self.setWindowTitle(self.title)
+        self.setGeometry(self.left, self.top, self.width, self.height)
+        self.setFixedSize(self.size())
 
         # child processes
         self._server = None
@@ -322,21 +293,86 @@ class Controller():
         # connection to child
         self.parent_conn = None
 
+        # create main menu
+        self._main_menu = QWidget()
+        self.create_main_menu()
+
+        # create game view
+        self._game_view = QWidget()
+        self.create_game_view()
+
+        # create stacked layout
+        self._stacked_layout = QStackedWidget(self)
+        self._stacked_layout.addWidget(self._main_menu)
+        self._stacked_layout.addWidget(self._game_view)
+
+        self.show()
+
+    # create main menu and add it to layout
+    def create_main_menu(self):
+        # create layout
+        layout = QFormLayout()
+
+        # bots button
+        button = QPushButton('Play against bots', self)
+        button.move(20,80)
+        button.clicked.connect(self.play_bots)
+        layout.addWidget(button)
+
+        button = QPushButton('Exit', self)
+        button.move(20, 120)
+        button.clicked.connect(self.close)
+        layout.addWidget(button)
+
+        # add to layout
+        self._main_menu.setLayout(layout)
+
+    def create_game_view(self):
+        # create layout
+        layout = QFormLayout()
+
+        # number bet choice button
+        number_bet = QComboBox()
+        number_bet.addItems(["6", "7", "8", "9", "10"])
+        layout.addWidget(number_bet)
+
+        # suit bet choice button
+        suit_bet = QComboBox()
+        suit_bet.addItems(["Spades", "Clubs", "Diamonds", "Hearts", "No Trumps"])
+        layout.addWidget(suit_bet)
+
+        # bet button, sends bet based on what we entered in the choice boxes above
+        button = QPushButton('Bet', self)
+        button.move(80,20)
+        button.clicked.connect(lambda: self.send_to_client(number_bet.currentText() +
+                suit_to_letter(suit_bet.currentText())))
+        layout.addWidget(button)
+
+        # pass button
+        button = QPushButton('Pass', self)
+        button.move(120,20)
+        button.clicked.connect(lambda: self.send_to_client("PASS"))
+        layout.addWidget(button)
+
+
+        # add to layout
+        self._game_view.setLayout(layout)
+
     # check for new input from our Client regularly
     # this means that our GUI is not being blocked for waiting
     # also note that multiprocess poll is not the same as subprocess poll,
     # hence the need for Client on seperate process
     def handle_client_input(self):
 
-        # poll if we have input from Client
-        if self.parent_conn.poll():
+        # repeatedly poll if we have input from Client
+        while self.parent_conn.poll():
             data = self.recieve_from_client()
             print(data)
 
             # now interact with GUI depending on message type
 
         # repeat 
-        self._master.after(POLL_DELAY, self.handle_client_input)
+        QtCore.QTimer.singleShot(POLL_DELAY, self.handle_client_input)
 
     # when user presses join
     def join(self):
@@ -354,8 +390,11 @@ class Controller():
         self._client = Process(target=Client, args=([ip, port, password, username], child_conn,))
         self._client.start()
 
+        # switch to game view
+        self._stacked_layout.setCurrentIndex(1)
+
         # check for new data sent by Client in regular intervals
-        self._master.after(POLL_DELAY, self.handle_client_input)
+        QtCore.QTimer.singleShot(POLL_DELAY, self.handle_client_input)
 
     # sends data to the client, must be a string (non blocking)
     def send_to_client(self, data):
@@ -379,17 +418,22 @@ class Controller():
 
         self.create_server(port, password, ptypes)
 
+    def play_bots(self):
+        self.host()
+        self.join()
+
     # ensure we exit only after cleaning up
-    def game_exit(self):
-        self._master.destroy()
+    def closeEvent(self, event):
 
         if self._server != None:
-            self._server.terminate()
+            self._server.kill()
             print("Server Terminated")
 
         if self._client != None:
             self._client.terminate()
             print("Client Terminated")
+
+        return QWidget.closeEvent(self, event)
 
     # creates the server
     def create_server(self, port, password, playertypes):
@@ -401,9 +445,7 @@ class Controller():
         self._server = subprocess.Popen(srvargs, stdout=subprocess.DEVNULL)
         print("Server Created.")
 
-if __name__ == '__main__':
-    root = tkinter.Tk()
-    app = Controller(root)
-    root.resizable(0,0) #Remove maximise button
-    root.geometry('760x760+150+150')
-    root.mainloop()
+if __name__ == '__main__':    
+    app = QApplication([])
+    ex = Controller()
+    sys.exit(app.exec_())
