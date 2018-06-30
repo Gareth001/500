@@ -11,7 +11,7 @@
 
 ## Compiling
 Requires at least `gcc` and `make`. Can be compiled on Windows with MinGW + MSYS.
-1. Clone the repository with `$ git clone https://github.com/Gareth001/500.git`
+1. Download and unzip the latest release from the [releases page](https://github.com/Gareth001/500/releases)
 3. Compile in 500 directory with `$ make`
 
 ## Running
@@ -39,3 +39,5 @@ For the kitty and play rounds, just send a card by typing the card exactly as it
 Note: Server requires no input after starting.
 ## Rules
 Australian rules, see https://www.pagat.com/euchre/500.html#oz4hand
+## Credit
+GUI is under development, and uses cards from https://code.google.com/archive/p/vector-playing-cards/.

@@ -66,6 +66,16 @@ class MsgType(AutoNumberEnum):
     KITTYDECK = () # new deck including the kitty {deck}
     KITTYCHOOSE = () # choose the kitty cards {remaining}
     KITTYEND = () # kitty end {}
+    JOKERSTART = () # waiting for joker suit {}
+    JOKERCHOOSE = () #TODO
+    JOKERBAD = () #TODO
+    JOKERCHOSEN = () #TODO
+    GAMESTART = () # game is starting {deck}
+    ROUNDNEW = () # new round starting {round}
+    ROUNDCARDPLAYED = () # card played {player, card, winningplayer, winningcard}
+    ROUNDCHOOSE = () # send a card please {}
+    ROUNDWON = () # round has been won {player, card, winningplayer, winningcard, bettingteamroundswon}
+    ROUNDBAD = () # bad card sent {message}
 
 # creates client subprocess and interacts with parent (Controller) process
 # through the given conn pipe
@@ -245,6 +255,86 @@ class Client():
                 ourbet = self.get_from_parent().encode('utf-8')
                 self.send_to_client(ourbet)
 
+    # joker round
+    def joker(self):
+        # tell parent we are waiting for joker suit (potentially)
+
+        while True:
+            line = self.read_line()
+
+            # TODO functionality for No Trumps
+
+            # joker round ends, goto game loop
+            if line == "Game Begins":
+                self.play()
+
+    # play round
+    def play(self):
+
+        # the first line has our new deck, note this one is sorted
+        line = self.read_line()
+        self.send_to_parent({"type" : MsgType.GAMESTART,
+                "deck" : re.sub(r'^.*: ', '', line).split(' ')})
+
+        while True:
+            line = self.read_line()
+
+            # note that we don't need to send the hand repeatedly, parent will handle
+            if re.search(r'Your hand: ', line):
+                continue
+            
+            # new round
+            elif re.search(r'Round ', line):
+                self.send_to_parent({"type" : MsgType.ROUNDNEW,
+                        "round" : int(line.split(' ')[1])})
+
+            # player won the bet
+            elif re.search(r'won', line):
+                # remove player
+                line = re.sub(r'Player ', '', line)
+
+                # split around '. '
+                line = line.split('. ')
+
+                # next line has how many tricks have been won by the betting team
+                line2 = self.read_line()
+                
+                self.send_to_parent({"type" : MsgType.ROUNDWON, 
+                        "player" : int(line[0].split(' ')[0]), "card" : line[0].split(' ')[-1],
+                        "winningplayer" : int(line[1].split(' ')[0]),
+                        "winningcard" : line[1].split(' ')[-1], 
+                        "bettingteamroundswon" : int(line2.split(' ')[4])})   
+
+            # player played a card
+            elif re.search(r'Player ', line):
+
+                # remove player
+                line = re.sub(r'Player ', '', line)
+
+                # split around '. '
+                line = line.split('. ')
+
+                self.send_to_parent({"type" : MsgType.ROUNDCARDPLAYED, 
+                        "player" : int(line[0].split(' ')[0]), "card" : line[0].split(' ')[-1],
+                        "winningplayer" : int(line[1].split(' ')[0]),
+                        "winningcard" : line[1].split(' ')[-1]})   
+
+
+            elif line == "Choose card to play: ":
+                self.send_to_parent({"type" : MsgType.ROUNDCHOOSE})
+
+                # get card from parent and send it 
+                ourbet = self.get_from_parent().encode('utf-8')
+                self.send_to_client(ourbet)
+
+            # TODO cases for restarting game
+
+            # error betting
+            else:
+                self.send_to_parent({"type" : MsgType.ROUNDBAD, 
+                        "message" : line})
+
+
     # loop 
     def game_loop(self):
         while True:
@@ -271,6 +361,10 @@ class Client():
             elif line == 'Waiting for Kitty':
                 self.kitty()
 
+            # choose joker suit (note this leads to play)
+            elif line == "Choosing joker suit":
+                self.joker()
+
 # not a traditional MVC application, the model is run on a different process and 
 # interacts with the controller through a pipe
 # this must be done since interacting with the client subprocess requires blocking calls
@@ -282,6 +376,7 @@ class Controller(QWidget):
         # game details
         self._player = None
         self._players = None
+        self._round = None
 
         # child processes
         self._server = None
@@ -340,9 +435,9 @@ class Controller(QWidget):
         self._player_cards = QHBoxLayout()
 
         # create card iamges for player
-        for i in range(0, 10):
+        for _ in range(0, 10):
 
-            svgWidget = QtSvg.QSvgWidget('img/JOKER.svg')
+            svgWidget = QtSvg.QSvgWidget('img/BACK.svg')
             svgWidget.setFixedSize(CARD_WIDTH, CARD_HEIGHT)
 
             self._player_cards.addWidget(svgWidget)
@@ -410,12 +505,42 @@ class Controller(QWidget):
             elem.setEnabled(not elem.isEnabled() if set == None else set)
 
     # given deck, updates the players hand
-    def update_player_hand(self, deck):
+    def update_player_hand(self, deck, setEvent = False):
 
-        for index, card in enumerate(deck):
-            widget = self._player_cards.itemAt(index).widget()
+        # update each card
+        for i, card in enumerate(deck):
+            widget = self._player_cards.itemAt(i).widget()
             widget.load('img/' + card + '.svg')
-            #widget.mouseReleaseEvent().connect(lambda evnent: self.send_to_client("card"))
+
+            # we only need this set after it is possible to choose a card
+            if setEvent:
+                # disable until we are required to send a card
+                widget.setEnabled(False)
+
+                # note the extra i=i argument to stop each lambda using local variable i
+                widget.mouseReleaseEvent = lambda event, card=card: self.send_card(card)
+
+    # sends card to client and also disables all cards from being pressed
+    def send_card(self, card):
+        self.activate_card_controls(set=False)
+        self.send_to_client(card)
+
+    # toggles card controls
+    # supply set to give them a value
+    def activate_card_controls(self, set=None):
+
+        for i in range(0, self._player_cards.count()):
+            widget = self._player_cards.itemAt(i).widget()
+            widget.setEnabled(not widget.isEnabled() if set == None else set)
+
+    # removes given card from our hand
+    # note closing the widget does not decrease the count of cards in the layout
+    def remove_card_from_hand(self, card):
+
+        # find location of card in our deck
+        print(self._players[self._player]["deck"])
+        index = self._players[self._player]["deck"].index(card)
+        self._player_cards.itemAt(index).widget().close()
 
     # check for new input from our Client regularly
     # this means that our GUI is not being blocked for waiting
@@ -435,6 +560,8 @@ class Controller(QWidget):
                 self._players = data["players"]
 
                 # update deck on screen
+                # we only will add the click event either during choosing the kitty
+                # or when the first round begins
                 self.update_player_hand(data["players"][self._player]["deck"])
 
             # enable bet controls on our bet
@@ -453,6 +580,27 @@ class Controller(QWidget):
             # disable controls after betting is done
             elif data["type"] is MsgType.BETWON:
                 self.activate_bet_controls(set=False)
+
+            # update bet (cards are now sorted by suit)
+            elif data["type"] is MsgType.GAMESTART:
+                self._players[self._player]["deck"] = data["deck"]
+                self.update_player_hand(data["deck"], setEvent=True)
+
+            # we can play a card, activate card controls
+            elif data["type"] is MsgType.ROUNDCHOOSE:
+                self.activate_card_controls(set=True)
+
+            # card has been played
+            elif data["type"] is MsgType.ROUNDCARDPLAYED:
+                # remove card from our hand if it was valid
+                if data["player"] == self._player:
+                    self.remove_card_from_hand(data["card"])
+
+            # also case that we are in the last round of play
+            elif data["type"] is MsgType.ROUNDWON:
+                # remove card from our hand if it was valid
+                if data["player"] == self._player:
+                    self.remove_card_from_hand(data["card"])
 
         # repeat 
         QtCore.QTimer.singleShot(POLL_DELAY, self.handle_client_input)
