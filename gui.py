@@ -7,10 +7,12 @@ import subprocess
 from multiprocessing import Process, Pipe
 from PyQt5.QtWidgets import (QApplication, QWidget, QPushButton,
         QStackedWidget, QFormLayout, QHBoxLayout, QComboBox, QLabel, QVBoxLayout)
-from PyQt5 import QtCore # pip3 install pyqt5
+from PyQt5 import QtCore, QtSvg # pip3 install pyqt5
 
 WIDTH = 830
 HEIGHT = 900
+CARD_WIDTH = 50 * 1.5
+CARD_HEIGHT = 73 * 1.5
 BUFFER_LENGTH = 100 # length of buffer for client process
 NEWLINE = os.linesep.encode('utf-8') # newline for this operating system (bytes)
 POLL_DELAY = 50 # milliseconds to wait until checking for new data
@@ -299,6 +301,7 @@ class Controller(QWidget):
 
         # create game view
         self._game_view = QWidget()
+        self._player_cards = None
         self._bet_controls = []
         self._bet_label = None
         self.create_game_view()
@@ -332,13 +335,20 @@ class Controller(QWidget):
     # creates game view and adds it to _game_view layout
     def create_game_view(self):
         # layout
-        main_layout = QVBoxLayout()
+        game_layout = QVBoxLayout()
 
-        # placeholder for game UI
-        button = QPushButton('This will be the playing platform', self)
-        button.move(80,20)
-        button.setFixedSize(QtCore.QSize(800, 800))
-        main_layout.addWidget(button)
+        self._player_cards = QHBoxLayout()
+
+        # create card iamges for player
+        for i in range(0, 10):
+
+            svgWidget = QtSvg.QSvgWidget('img/JOKER.svg')
+            svgWidget.setFixedSize(CARD_WIDTH, CARD_HEIGHT)
+
+            self._player_cards.addWidget(svgWidget)
+
+        # add this card layout
+        game_layout.addLayout(self._player_cards)
 
         # create layout for betting actions
         layout = QHBoxLayout()
@@ -390,14 +400,22 @@ class Controller(QWidget):
         self.activate_bet_controls()
 
         # add to layout
-        main_layout.addLayout(layout)
-        self._game_view.setLayout(main_layout)
+        game_layout.addLayout(layout)
+        self._game_view.setLayout(game_layout)
 
     # toggles button activation
     # leave bool as None to toggle bet
     def activate_bet_controls(self, set=None):
         for elem in self._bet_controls:
             elem.setEnabled(not elem.isEnabled() if set == None else set)
+
+    # given deck, updates the players hand
+    def update_player_hand(self, deck):
+
+        for index, card in enumerate(deck):
+            widget = self._player_cards.itemAt(index).widget()
+            widget.load('img/' + card + '.svg')
+            #widget.mouseReleaseEvent().connect(lambda evnent: self.send_to_client("card"))
 
     # check for new input from our Client regularly
     # this means that our GUI is not being blocked for waiting
@@ -415,6 +433,9 @@ class Controller(QWidget):
             if data["type"] is MsgType.PLAYER:
                 self._player = data["player"]
                 self._players = data["players"]
+
+                # update deck on screen
+                self.update_player_hand(data["players"][self._player]["deck"])
 
             # enable bet controls on our bet
             elif data["type"] is MsgType.BETOURS:
