@@ -9,9 +9,15 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QPushButton,
         QStackedWidget, QFormLayout, QHBoxLayout, QComboBox, QLabel, QVBoxLayout)
 from PyQt5 import QtCore, QtSvg # pip3 install pyqt5
 
+# 500 GUI created with PyQt. Acts as a wrapper for the client and server
+# previously created in c. Creates a server and runs the client
+# on a different process (since reading stdout from client is blocking).
+# Communicates between this subprocess and the controller to update the GUI
+# and get input from the user.
+
 WIDTH = 830
 HEIGHT = 900
-CARD_WIDTH = 50 * 1.5
+CARD_WIDTH = 50 * 1.5 # width of card as it appears on the screen
 CARD_HEIGHT = 73 * 1.5
 BUFFER_LENGTH = 100 # length of buffer for client process
 NEWLINE = os.linesep.encode('utf-8') # newline for this operating system (bytes)
@@ -327,6 +333,10 @@ class Client():
                 ourbet = self.get_from_parent().encode('utf-8')
                 self.send_to_client(ourbet)
 
+            # blank line is just a seperator
+            elif line == '':
+                continue
+
             # TODO cases for restarting game
 
             # error betting
@@ -492,7 +502,7 @@ class Controller(QWidget):
         layout.addWidget(self._bet_label)
 
         # disable bet buttons by default
-        self.activate_bet_controls()
+        self.activate_bet_controls(set=False)
 
         # add to layout
         game_layout.addLayout(layout)
@@ -517,7 +527,8 @@ class Controller(QWidget):
                 # disable until we are required to send a card
                 widget.setEnabled(False)
 
-                # note the extra i=i argument to stop each lambda using local variable i
+                # note the extra card=card argument to stop each 
+                # lambda using local variable card
                 widget.mouseReleaseEvent = lambda event, card=card: self.send_card(card)
 
     # sends card to client and also disables all cards from being pressed
@@ -537,8 +548,7 @@ class Controller(QWidget):
     # note closing the widget does not decrease the count of cards in the layout
     def remove_card_from_hand(self, card):
 
-        # find location of card in our deck
-        print(self._players[self._player]["deck"])
+        # find location of card in our deck and close that widget
         index = self._players[self._player]["deck"].index(card)
         self._player_cards.itemAt(index).widget().close()
 
