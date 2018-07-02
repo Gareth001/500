@@ -5,8 +5,9 @@ import enum
 from aenum import Enum, AutoNumberEnum # pip3 install aenum
 import subprocess
 from multiprocessing import Process, Pipe
-from PyQt5.QtWidgets import (QApplication, QWidget, QPushButton,
-        QStackedWidget, QFormLayout, QHBoxLayout, QComboBox, QLabel, QVBoxLayout)
+from PyQt5.QtWidgets import (QApplication, QWidget, QPushButton, QLayout,
+        QStackedWidget, QFormLayout, QHBoxLayout, QComboBox, QLabel, QVBoxLayout,
+        )
 from PyQt5 import QtCore, QtSvg # pip3 install pyqt5
 
 # 500 GUI created with PyQt. Acts as a wrapper for the client and server
@@ -22,10 +23,15 @@ CARD_HEIGHT = 73 * 1.5
 BUFFER_LENGTH = 100 # length of buffer for client process
 NEWLINE = os.linesep.encode('utf-8') # newline for this operating system (bytes)
 POLL_DELAY = 50 # milliseconds to wait until checking for new data
+NUMBER_PLAYERS = 4
+MIN_TIME_BETWEEN_MOVES = 1000 # min number of milliseconds to wait until a move is completed
 
 # returns string representation of a bet
 # TODO: Misere
 def string_to_bet(string):
+    if string == 'PASS':
+        return 'Pass'
+
     ret = []
     if len(string) == 2 or len(string) == 3:
         # put first 1 or 2 chars in first element
@@ -69,9 +75,9 @@ class MsgType(AutoNumberEnum):
     BETOURS = () # our bet {}
     BETFAILED = () # bet failed {message}
     BETWON = () # a player has won the bet {player, bet}
-    KITTYDECK = () # new deck including the kitty {deck}
-    KITTYCHOOSE = () # choose the kitty cards {remaining}
-    KITTYEND = () # kitty end {}
+    KITTYDECK = () # new deck including the kitty {deck} TODO
+    KITTYCHOOSE = () # choose the kitty cards {remaining} TODO
+    KITTYEND = () # kitty end {} TODO
     JOKERSTART = () # waiting for joker suit {}
     JOKERCHOOSE = () #TODO
     JOKERBAD = () #TODO
@@ -131,7 +137,7 @@ class Client():
     def get_game_data(self):
 
         # these four lines are the players names
-        for i in range(0, 4):
+        for i in range(0, NUMBER_PLAYERS):
             # read ith players name, removing newline
             name = self.read_line()
 
@@ -406,7 +412,12 @@ class Controller(QWidget):
 
         # create game view
         self._game_view = QWidget()
-        self._player_cards = None
+
+        self._card_layout = [None] * NUMBER_PLAYERS
+        self._played_cards = None
+        self._cards_played = 0
+        self._player_info = [None] * NUMBER_PLAYERS
+
         self._bet_controls = []
         self._bet_label = None
         self.create_game_view()
@@ -442,19 +453,101 @@ class Controller(QWidget):
         # layout
         game_layout = QVBoxLayout()
 
-        self._player_cards = QHBoxLayout()
-
-        # create card iamges for player
+        self._card_layout[2] = QHBoxLayout()
+        # create card iamges for teammate
         for _ in range(0, 10):
-
             svgWidget = QtSvg.QSvgWidget('img/BACK.svg')
             svgWidget.setFixedSize(CARD_WIDTH, CARD_HEIGHT)
-
-            self._player_cards.addWidget(svgWidget)
+            self._card_layout[2].addWidget(svgWidget)
 
         # add this card layout
-        game_layout.addLayout(self._player_cards)
+        game_layout.addLayout(self._card_layout[2])
 
+        # Hbox for center of the screen
+        middle_layout = QHBoxLayout()
+
+        # player on other team
+        self._card_layout[1] = QVBoxLayout()
+        self._card_layout[1].setAlignment(QtCore.Qt.AlignLeft)
+
+        for _ in range(0, 10):
+            svgWidget = QtSvg.QSvgWidget('img/BACK.svg')
+            svgWidget.setFixedSize(CARD_WIDTH/2, CARD_HEIGHT/2)
+            self._card_layout[1].addWidget(svgWidget)
+        
+        # add this card layout
+        middle_layout.addLayout(self._card_layout[1])
+
+        # add other team info label
+        self._player_info[1] = QLabel(self)
+        self._player_info[1].setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
+        self._player_info[1].setText("Waiting for player")
+        middle_layout.addWidget(self._player_info[1])
+
+        # layout in middle center (for teammate and your info)
+        middle_center_layout = QVBoxLayout()
+
+        # add teammate info label
+        self._player_info[2] = QLabel(self)
+        self._player_info[2].setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignCenter) #TODO fix
+        self._player_info[2].setText("Waiting for player")
+        middle_center_layout.addWidget(self._player_info[2])
+
+        # add where the 4 cards will go during play
+        self._played_cards = QHBoxLayout()
+        for _ in range(0, NUMBER_PLAYERS):
+            svgWidget = QtSvg.QSvgWidget('img/BACK.svg')
+            svgWidget.setFixedSize(CARD_WIDTH, CARD_HEIGHT)
+            self._played_cards.addWidget(svgWidget)
+            
+        # add this card layout
+        middle_center_layout.addLayout(self._played_cards)
+
+        # add player info label
+        self._player_info[0] = QLabel(self)
+        self._player_info[0].setAlignment(QtCore.Qt.AlignBottom | QtCore.Qt.AlignCenter)
+        self._player_info[0].setText("Waiting for player")
+        middle_center_layout.addWidget(self._player_info[0])
+
+        # add middle center layout to middle layout
+        middle_layout.addLayout(middle_center_layout)
+
+        # add other team info label
+        self._player_info[3] = QLabel(self)
+        self._player_info[3].setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        self._player_info[3].setText("Waiting for player")
+        middle_layout.addWidget(self._player_info[3])
+
+        self._card_layout[3] = QVBoxLayout()
+        self._card_layout[3].setAlignment(QtCore.Qt.AlignRight)
+        # create card iamges for other team
+        for _ in range(0, 10):
+            svgWidget = QtSvg.QSvgWidget('img/BACK.svg')
+            svgWidget.setFixedSize(CARD_WIDTH/2, CARD_HEIGHT/2)
+            self._card_layout[3].addWidget(svgWidget)
+
+        # add this card layout
+        middle_layout.addLayout(self._card_layout[3])
+
+        # add the middle layout
+        game_layout.addLayout(middle_layout)
+
+        # create card iamges for player
+        self._card_layout[0] = QHBoxLayout()
+        for _ in range(0, 10):
+            svgWidget = QtSvg.QSvgWidget('img/BACK.svg')
+            svgWidget.setFixedSize(CARD_WIDTH, CARD_HEIGHT)
+            self._card_layout[0].addWidget(svgWidget)
+
+        # add this card layout
+        game_layout.addLayout(self._card_layout[0])
+
+        # add to layout
+        game_layout.addLayout(self.create_bet_controls())
+        self._game_view.setLayout(game_layout)
+
+    # returns layout containing all bet controls
+    def create_bet_controls(self):
         # create layout for betting actions
         layout = QHBoxLayout()
 
@@ -472,7 +565,6 @@ class Controller(QWidget):
 
         # bet button, sends bet based on what we entered in the choice boxes above
         button = QPushButton('Bet', self)
-        button.move(80,20)
         button.clicked.connect(lambda: self.send_to_client(number_bet.currentText() +
                 suit_to_letter(suit_bet.currentText())))
         layout.addWidget(button)
@@ -480,7 +572,6 @@ class Controller(QWidget):
 
         # pass button
         button = QPushButton('Pass', self)
-        button.move(120,20)
         button.clicked.connect(lambda: self.send_to_client("PASS"))
         layout.addWidget(button)
         self._bet_controls.append(button)
@@ -504,9 +595,7 @@ class Controller(QWidget):
         # disable bet buttons by default
         self.activate_bet_controls(set=False)
 
-        # add to layout
-        game_layout.addLayout(layout)
-        self._game_view.setLayout(game_layout)
+        return layout
 
     # toggles button activation
     # leave bool as None to toggle bet
@@ -519,7 +608,7 @@ class Controller(QWidget):
 
         # update each card
         for i, card in enumerate(deck):
-            widget = self._player_cards.itemAt(i).widget()
+            widget = self._card_layout[self._player].itemAt(i).widget()
             widget.load('img/' + card + '.svg')
 
             # we only need this set after it is possible to choose a card
@@ -533,24 +622,37 @@ class Controller(QWidget):
 
     # sends card to client and also disables all cards from being pressed
     def send_card(self, card):
-        self.activate_card_controls(set=False)
         self.send_to_client(card)
 
     # toggles card controls
     # supply set to give them a value
     def activate_card_controls(self, set=None):
 
-        for i in range(0, self._player_cards.count()):
-            widget = self._player_cards.itemAt(i).widget()
+        for i in range(0, self._card_layout[self._player].count()):
+            widget = self._card_layout[self._player].itemAt(i).widget()
             widget.setEnabled(not widget.isEnabled() if set == None else set)
 
     # removes given card from our hand
     # note closing the widget does not decrease the count of cards in the layout
-    def remove_card_from_hand(self, card):
+    def remove_card_from_hand(self, player, card):
 
         # find location of card in our deck and close that widget
-        index = self._players[self._player]["deck"].index(card)
-        self._player_cards.itemAt(index).widget().close()
+        if player == self._player:
+            index = self._players[self._player]["deck"].index(card)
+        else:
+            index = self._round
+        self._card_layout[player].itemAt(index).widget().close()
+
+    # resets the cards played interface
+    def reset_cards_played(self):
+        self._cards_played = 0
+        for i in range (0, self._played_cards.count()):
+            self._played_cards.itemAt(i).widget().load('img/BACK.svg')
+
+    # adds the card to the center
+    def add_card_played(self, card):
+        self._played_cards.itemAt(self._cards_played).widget().load('img/' + card + '.svg')
+        self._cards_played += 1
 
     # check for new input from our Client regularly
     # this means that our GUI is not being blocked for waiting
@@ -558,6 +660,9 @@ class Controller(QWidget):
     # hence the need for Client on seperate process
     # see MsgTypes enum for details on message contents
     def handle_client_input(self):
+
+        # slow down interaction for when you are playing with bots
+        after = POLL_DELAY
 
         # repeatedly poll if we have input from Client
         while self.parent_conn.poll():
@@ -569,19 +674,45 @@ class Controller(QWidget):
                 self._player = data["player"]
                 self._players = data["players"]
 
+                # we want to arrange the self._card_layout indexes so that 
+                # index 0 becomes the new index self._player.
+                b = self._card_layout[-int(self._player):] # int to remove pyling errors
+                b.extend(self._card_layout[:-int(self._player)])
+                self._card_layout = b
+
+                # same for self._player_info
+                c = self._player_info[-int(self._player):]
+                c.extend(self._player_info[:-int(self._player)])
+                self._player_info = c
+
                 # update deck on screen
                 # we only will add the click event either during choosing the kitty
                 # or when the first round begins
                 self.update_player_hand(data["players"][self._player]["deck"])
 
+                # update all info on screen
+                for index in range(0, NUMBER_PLAYERS):
+                    self._player_info[index].setText(data["players"][index]["name"] + os.linesep)
+
             # enable bet controls on our bet
             elif data["type"] is MsgType.BETOURS:
+                # activate bet controls
                 self.activate_bet_controls(set=True)
-
             
             elif data["type"] is MsgType.BETINFO:
+                # reset error text and disable bet controls if this was us
                 if data["player"] == self._player:
                     self._bet_label.setText("")
+                    self.activate_bet_controls(set=False)
+
+                # add betting text
+                self._player_info[data["player"]].setText(
+                        self._player_info[data["player"]].text()
+                        + os.linesep + string_to_bet(data["bet"]))
+
+                if MIN_TIME_BETWEEN_MOVES:
+                    after = MIN_TIME_BETWEEN_MOVES
+                    break
 
             # display why the users bet failed
             elif data["type"] is MsgType.BETFAILED:
@@ -591,10 +722,20 @@ class Controller(QWidget):
             elif data["type"] is MsgType.BETWON:
                 self.activate_bet_controls(set=False)
 
+                if MIN_TIME_BETWEEN_MOVES:
+                    after = MIN_TIME_BETWEEN_MOVES
+                    break
+
             # update bet (cards are now sorted by suit)
             elif data["type"] is MsgType.GAMESTART:
                 self._players[self._player]["deck"] = data["deck"]
                 self.update_player_hand(data["deck"], setEvent=True)
+
+            # new round
+            elif data["type"] is MsgType.ROUNDNEW:
+                # reset number of cards played
+                self.reset_cards_played()
+                self._round = data["round"]
 
             # we can play a card, activate card controls
             elif data["type"] is MsgType.ROUNDCHOOSE:
@@ -602,18 +743,30 @@ class Controller(QWidget):
 
             # card has been played
             elif data["type"] is MsgType.ROUNDCARDPLAYED:
-                # remove card from our hand if it was valid
-                if data["player"] == self._player:
-                    self.remove_card_from_hand(data["card"])
+                # remove card from the hand
+                self.activate_card_controls(set=False)
+                self.remove_card_from_hand(data["player"], data["card"])
+                    
+                # play card to self._played_cards
+                self.add_card_played(data["card"])
+                if MIN_TIME_BETWEEN_MOVES:
+                    after = MIN_TIME_BETWEEN_MOVES
+                    break
 
             # also case that we are in the last round of play
             elif data["type"] is MsgType.ROUNDWON:
-                # remove card from our hand if it was valid
-                if data["player"] == self._player:
-                    self.remove_card_from_hand(data["card"])
+                # remove card from the hand
+                self.activate_card_controls(set=False)
+                self.remove_card_from_hand(data["player"], data["card"])
+
+                # play card to self._played_cards
+                self.add_card_played(data["card"])
+                if MIN_TIME_BETWEEN_MOVES:
+                    after = MIN_TIME_BETWEEN_MOVES
+                    break
 
         # repeat 
-        QtCore.QTimer.singleShot(POLL_DELAY, self.handle_client_input)
+        QtCore.QTimer.singleShot(after, self.handle_client_input)
 
     # when user presses join
     def join(self):
