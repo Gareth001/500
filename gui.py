@@ -7,7 +7,7 @@ import subprocess
 from multiprocessing import Process, Pipe
 from PyQt5.QtWidgets import (QApplication, QWidget, QPushButton, QLayout,
         QStackedWidget, QFormLayout, QHBoxLayout, QComboBox, QLabel, QVBoxLayout,
-        )
+        QMessageBox)
 from PyQt5 import QtCore, QtSvg # pip3 install pyqt5
 
 # 500 GUI created with PyQt. Acts as a wrapper for the client and server
@@ -393,13 +393,12 @@ class Controller(QWidget):
         self._player = None
         self._players = None
         self._round = None
+        self._cards_played = 0
 
         # child processes
         self._server = None
         self._client = None
-
-        # connection to child
-        self.parent_conn = None
+        self._parent_conn = None # connection to child
 
         # set graphics properties
         self.setWindowTitle('500')
@@ -412,12 +411,9 @@ class Controller(QWidget):
 
         # create game view
         self._game_view = QWidget()
-
-        self._card_layout = [None] * NUMBER_PLAYERS
-        self._played_cards = None
-        self._cards_played = 0
-        self._player_info = [None] * NUMBER_PLAYERS
-
+        self._card_layout = [None] * NUMBER_PLAYERS # array of players cards
+        self._played_cards = None # four cards in center of screen
+        self._player_info = [None] * NUMBER_PLAYERS # info label for each player
         self._bet_controls = []
         self._bet_label = None
         self.create_game_view()
@@ -432,16 +428,31 @@ class Controller(QWidget):
     # create main menu and add it to _main_menu layout
     def create_main_menu(self):
         # create layout
-        layout = QFormLayout()
+        layout = QVBoxLayout()
+        layout.setAlignment(QtCore.Qt.AlignCenter)
 
         # bots button
         button = QPushButton('Play against bots', self)
-        button.move(20,80)
         button.clicked.connect(self.play_bots)
         layout.addWidget(button)
 
+        # join server
+        button = QPushButton('Join a server', self)
+        # button.clicked.connect(self.play_bots)
+        layout.addWidget(button)
+
+        # host and play
+        button = QPushButton('Host and play', self)
+        # button.clicked.connect(self.play_bots)
+        layout.addWidget(button)
+
+        # options
+        button = QPushButton('Options', self)
+        # button.clicked.connect(self.play_bots)
+        layout.addWidget(button)
+
+        # exit
         button = QPushButton('Exit', self)
-        button.move(20, 120)
         button.clicked.connect(self.close)
         layout.addWidget(button)
 
@@ -481,7 +492,6 @@ class Controller(QWidget):
         # add other team info label
         self._player_info[1] = QLabel(self)
         self._player_info[1].setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
-        self._player_info[1].setText("Waiting for player")
         middle_layout.addWidget(self._player_info[1])
 
         # layout in middle center (for teammate and your info)
@@ -490,7 +500,6 @@ class Controller(QWidget):
         # add teammate info label
         self._player_info[2] = QLabel(self)
         self._player_info[2].setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignCenter) #TODO fix
-        self._player_info[2].setText("Waiting for player")
         middle_center_layout.addWidget(self._player_info[2])
 
         # add where the 4 cards will go during play
@@ -506,7 +515,6 @@ class Controller(QWidget):
         # add player info label
         self._player_info[0] = QLabel(self)
         self._player_info[0].setAlignment(QtCore.Qt.AlignBottom | QtCore.Qt.AlignCenter)
-        self._player_info[0].setText("Waiting for player")
         middle_center_layout.addWidget(self._player_info[0])
 
         # add middle center layout to middle layout
@@ -515,8 +523,11 @@ class Controller(QWidget):
         # add other team info label
         self._player_info[3] = QLabel(self)
         self._player_info[3].setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
-        self._player_info[3].setText("Waiting for player")
         middle_layout.addWidget(self._player_info[3])
+
+        # set player info as waiting
+        for index in range(0, 4):
+            self._player_info[index].setText("Waiting for player")
 
         self._card_layout[3] = QVBoxLayout()
         self._card_layout[3].setAlignment(QtCore.Qt.AlignRight)
@@ -534,6 +545,7 @@ class Controller(QWidget):
 
         # create card iamges for player
         self._card_layout[0] = QHBoxLayout()
+        self._card_layout[0].setAlignment(QtCore.Qt.AlignBottom)
         for _ in range(0, 10):
             svgWidget = QtSvg.QSvgWidget('img/BACK.svg')
             svgWidget.setFixedSize(CARD_WIDTH, CARD_HEIGHT)
@@ -592,6 +604,12 @@ class Controller(QWidget):
         # TODO set to red text
         layout.addWidget(self._bet_label)
 
+        # main menu button
+        button = QPushButton('Exit to menu', self)
+        layout.addWidget(button)
+        button.clicked.connect(lambda: self.exit_to_menu())
+        self._bet_controls.append(button)
+
         # disable bet buttons by default
         self.activate_bet_controls(set=False)
 
@@ -600,12 +618,17 @@ class Controller(QWidget):
     # toggles button activation
     # leave bool as None to toggle bet
     def activate_bet_controls(self, set=None):
-        for elem in self._bet_controls:
+        for elem in self._bet_controls[:len(self._bet_controls) - 1]:
             elem.setEnabled(not elem.isEnabled() if set == None else set)
+
+    # reset bet controls
+    def reset_bet_controls(self):
+        self.activate_bet_controls(set=False)
+        self._bet_controls[0].setCurrentIndex(0)
+        self._bet_controls[1].setCurrentIndex(0)
 
     # given deck, updates the players hand
     def update_player_hand(self, deck, setEvent = False):
-
         # update each card
         for i, card in enumerate(deck):
             widget = self._card_layout[self._player].itemAt(i).widget()
@@ -619,6 +642,18 @@ class Controller(QWidget):
                 # note the extra card=card argument to stop each 
                 # lambda using local variable card
                 widget.mouseReleaseEvent = lambda event, card=card: self.send_card(card)
+
+    # resets all players hands
+    def reset_players_hands(self):
+        # show each players cards again
+        for i in range(0, NUMBER_PLAYERS):
+            for j in range(0, 10):
+                widget = self._card_layout[i].itemAt(j).widget()
+                widget.load('img/BACK.svg')
+                widget.show()
+
+        # reset card layout to what it was before
+        self.rearrange_card_layout(-int(self._player)) # int to remove pylint errors
 
     # sends card to client and also disables all cards from being pressed
     def send_card(self, card):
@@ -641,7 +676,7 @@ class Controller(QWidget):
             index = self._players[self._player]["deck"].index(card)
         else:
             index = self._round
-        self._card_layout[player].itemAt(index).widget().close()
+        self._card_layout[player].itemAt(index).widget().hide()
 
     # resets the cards played interface
     def reset_cards_played(self):
@@ -654,6 +689,25 @@ class Controller(QWidget):
         self._played_cards.itemAt(self._cards_played).widget().load('img/' + card + '.svg')
         self._cards_played += 1
 
+    # reset player info
+    def reset_player_info(self):
+        # set player info as waiting
+        for index in range(0, 4):
+            self._player_info[index].setText("Waiting for player")
+
+
+    # change the card layout so that number is the player at the base of the 
+    # interface. player 0 is there by default.
+    def rearrange_card_layout(self, number):
+        b = self._card_layout[-number:]
+        b.extend(self._card_layout[:-number])
+        self._card_layout = b
+
+        # same for self._player_info
+        c = self._player_info[-number:]
+        c.extend(self._player_info[:-number])
+        self._player_info = c
+
     # check for new input from our Client regularly
     # this means that our GUI is not being blocked for waiting
     # also note that multiprocess poll is not the same as subprocess poll,
@@ -664,8 +718,12 @@ class Controller(QWidget):
         # slow down interaction for when you are playing with bots
         after = POLL_DELAY
 
+        # check if game is still going
+        if self._parent_conn == None:
+            return
+
         # repeatedly poll if we have input from Client
-        while self.parent_conn.poll():
+        while self._parent_conn.poll():
             data = self.recieve_from_client()
             print(data)
 
@@ -676,14 +734,7 @@ class Controller(QWidget):
 
                 # we want to arrange the self._card_layout indexes so that 
                 # index 0 becomes the new index self._player.
-                b = self._card_layout[-int(self._player):] # int to remove pyling errors
-                b.extend(self._card_layout[:-int(self._player)])
-                self._card_layout = b
-
-                # same for self._player_info
-                c = self._player_info[-int(self._player):]
-                c.extend(self._player_info[:-int(self._player)])
-                self._player_info = c
+                self.rearrange_card_layout(self._player)
 
                 # update deck on screen
                 # we only will add the click event either during choosing the kitty
@@ -749,9 +800,16 @@ class Controller(QWidget):
                     
                 # play card to self._played_cards
                 self.add_card_played(data["card"])
-                if MIN_TIME_BETWEEN_MOVES:
+
+                # only have a break if we are not next
+                if MIN_TIME_BETWEEN_MOVES and \
+                        not (data["player"] + 1) % NUMBER_PLAYERS == self._player:
                     after = MIN_TIME_BETWEEN_MOVES
                     break
+
+            # player played bad card, show them a message
+            elif data["type"] is MsgType.ROUNDBAD:
+                QMessageBox.information(self, '500', data["message"])
 
             # also case that we are in the last round of play
             elif data["type"] is MsgType.ROUNDWON:
@@ -772,7 +830,7 @@ class Controller(QWidget):
     def join(self):
 
         # communication
-        self.parent_conn, child_conn = Pipe()
+        self._parent_conn, child_conn = Pipe()
 
         # temp details
         ip = "127.0.0.1"
@@ -792,13 +850,13 @@ class Controller(QWidget):
 
     # sends data to the client, must be a string (non blocking)
     def send_to_client(self, data):
-        if self.parent_conn != None:
-            self.parent_conn.send(data)
+        if self._parent_conn != None:
+            self._parent_conn.send(data)
 
     # recieves data from client (blocking)
     def recieve_from_client(self):
-        if self.parent_conn != None:
-            return self.parent_conn.recv()
+        if self._parent_conn != None:
+            return self._parent_conn.recv()
         
         return None
 
@@ -819,16 +877,41 @@ class Controller(QWidget):
 
     # ensure we exit only after cleaning up
     def closeEvent(self, event):
+        self.close_subprocesses()
+        return QWidget.closeEvent(self, event)
 
+    # closes server and client subprocesses
+    def close_subprocesses(self):
         if self._server != None:
             self._server.kill()
+            self._server = None
+            self._parent_conn = None
             print("Server Terminated")
 
         if self._client != None:
             self._client.terminate()
+            self._client = None
             print("Client Terminated")
 
-        return QWidget.closeEvent(self, event)
+    # change layout and close server and client subprocesses
+    def exit_to_menu(self):
+        self._stacked_layout.setCurrentIndex(0)
+        self.close_subprocesses()
+        self.reset()
+
+    # reset game variables
+    def reset(self):
+        # reset all parts of gui
+        self.reset_cards_played()
+        self.reset_bet_controls()
+        self.reset_players_hands()
+        self.reset_player_info()
+
+        # reset all player details
+        self._player = None
+        self._players = None
+        self._round = None
+        self._cards_played = 0
 
     # creates the server
     def create_server(self, port, password, playertypes):

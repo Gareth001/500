@@ -278,7 +278,7 @@ Card bot_can_short_suit(GameInfo* game, Card** deckSplit, int* suitCount) {
                 }
 
                 // play smallest card we have higher than winner
-                for (int i = suitCount[game->suit] - 1; i > 0; i--) {
+                for (int i = suitCount[game->suit] - 1; i >= 0; i--) {
 
                     if (deckSplit[game->suit][i].value > game->winner.value) {
                         card = deckSplit[game->suit][i];
