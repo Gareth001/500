@@ -3,7 +3,7 @@
 // populate split deck and suitCount
 void split_deck(GameInfo* game, Card*** deckSplit, int** suitCount, int cards);
 
-// returns the lowest non trump card (empty card if none exists)
+// returns the lowest non trump card (lowest trump if only trumps)
 Card get_lowest_non_trump_card(GameInfo* game, int cards);
 
 // given suitCount, gives you total cards.
@@ -434,7 +434,7 @@ int sum_suitCount(int* suitCount) {
 
 }
 
-// returns the lowest non trump card (empty card if none exists)
+// returns the lowest non trump card (lowest trump if only trumps)
 Card get_lowest_non_trump_card(GameInfo* game, int cards) {
     Card card;
 
@@ -463,6 +463,14 @@ Card get_lowest_non_trump_card(GameInfo* game, int cards) {
             card = deckSplit[i][suitCount[i] - 1];
 
         }
+
+    }
+
+    // case where we only have trumps casuses issues here.
+    // instead of checking for empty card on return, ensure this always returns
+    // a valid card
+    if (card.value == JOKER_VALUE + 1) {
+        card = deckSplit[game->suit][suitCount[game->suit] - 1];
 
     }
 
