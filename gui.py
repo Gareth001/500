@@ -7,7 +7,7 @@ import subprocess
 from multiprocessing import Process, Pipe
 from PyQt5.QtWidgets import (QApplication, QWidget, QPushButton, QLayout,
         QStackedWidget, QFormLayout, QHBoxLayout, QComboBox, QLabel, QVBoxLayout,
-        QMessageBox)
+        QMessageBox, QSpinBox, QLineEdit)
 from PyQt5 import QtCore, QtSvg # pip3 install pyqt5
 
 # 500 GUI created with PyQt. Acts as a wrapper for the client and server
@@ -88,6 +88,27 @@ class MsgType(AutoNumberEnum):
     ROUNDCHOOSE = () # send a card please {}
     ROUNDWON = () # round has been won {player, card, winningplayer, winningcard, bettingteamroundswon}
     ROUNDBAD = () # bad card sent {message}
+
+# returns a QHBoxLayout containing text and widget
+def create_menu_entry(text, widget):
+    sublayout = QHBoxLayout()
+
+    # create text label
+    text_label = QLabel()
+    text_label.setText(text)
+    sublayout.addWidget(text_label)
+
+    # add widget
+    sublayout.addWidget(widget)
+
+    return sublayout
+
+# returns the localhost ip address for this system 
+def get_localhost_ip():
+    if os.name == "nt":
+        return "127.0.0.1"
+    
+    return "0.0.0.0"
 
 # creates client subprocess and interacts with parent (Controller) process
 # through the given conn pipe
@@ -390,7 +411,7 @@ class Controller(QWidget):
         super().__init__()
 
         # game details
-        self._player = None
+        self._player = 0
         self._players = None
         self._round = None
         self._cards_played = 0
@@ -407,7 +428,17 @@ class Controller(QWidget):
 
         # create main menu
         self._main_menu = QWidget()
-        self.create_main_menu()
+        self.create_main_menu_view()
+
+        # create game options view
+        self._options_type = None # which options screen to display
+        self._port = None
+        self._username = None
+        self._ip = None
+        self._password = None
+        self._player_types = [None] * 3
+        self._game_options_view = QWidget()
+        self.create_game_options_view()
 
         # create game view
         self._game_view = QWidget()
@@ -421,34 +452,34 @@ class Controller(QWidget):
         # create stacked layout
         self._stacked_layout = QStackedWidget(self)
         self._stacked_layout.addWidget(self._main_menu)
+        self._stacked_layout.addWidget(self._game_options_view)
         self._stacked_layout.addWidget(self._game_view)
 
         self.show()
 
     # create main menu and add it to _main_menu layout
-    def create_main_menu(self):
+    def create_main_menu_view(self):
         # create layout
         layout = QVBoxLayout()
         layout.setAlignment(QtCore.Qt.AlignCenter)
 
         # bots button
         button = QPushButton('Play against bots', self)
-        button.clicked.connect(self.play_bots)
+        button.clicked.connect(lambda: self.goto_game_options(0))
         layout.addWidget(button)
 
         # join server
         button = QPushButton('Join a server', self)
-        # button.clicked.connect(self.play_bots)
+        button.clicked.connect(lambda: self.goto_game_options(1))
         layout.addWidget(button)
 
         # host and play
         button = QPushButton('Host and play', self)
-        # button.clicked.connect(self.play_bots)
+        button.clicked.connect(lambda: self.goto_game_options(2))
         layout.addWidget(button)
 
         # options
         button = QPushButton('Options', self)
-        # button.clicked.connect(self.play_bots)
         layout.addWidget(button)
 
         # exit
@@ -458,6 +489,122 @@ class Controller(QWidget):
 
         # add to layout
         self._main_menu.setLayout(layout)
+
+    # go to the game options screen
+    # type is which screen button you came from:
+    # 0 for bots
+    # 1 for join server
+    # 2 for host and play
+    def goto_game_options(self, options_type):
+        self._options_type = options_type
+        self._stacked_layout.setCurrentIndex(1)
+        self.reset_game_options()
+
+        # hide layouts depending on which options type we are
+        if options_type == 0:
+            self._ip.hide()
+            self._password.hide()
+            for index in range(0,3):
+                self._player_types[index].hide()
+
+        elif options_type == 1:
+            for index in range(0,3):
+                self._player_types[index].hide()
+
+        elif options_type == 2:
+            self._ip.hide()
+
+    # unhide all game options (note port and username are never hidden)
+    def reset_game_options(self):
+        self._ip.show()
+        self._password.show()
+        for index in range(0,3):
+            self._player_types[index].show()
+
+    # create the options for joining game menu
+    def create_game_options_view(self):
+        # create layout
+        layout = QVBoxLayout()
+        layout.setAlignment(QtCore.Qt.AlignCenter)
+
+        # username
+        edit = QLineEdit()
+        edit.setText("Jimmy")
+        edit.setMaximumWidth(200)
+        self._username = QWidget()
+        self._username.setLayout(create_menu_entry("Username: ", edit))
+        layout.addWidget(self._username)
+
+        # port
+        port = QSpinBox()
+        port.setMaximum(65535)
+        port.setValue(2222)
+        port.setMaximumWidth(200)
+        self._port = QWidget()
+        self._port.setLayout(create_menu_entry("Port: ", port))
+        layout.addWidget(self._port)
+
+        # ip 
+        ip = QLineEdit()
+        ip.setMaximumWidth(200)
+        self._ip = QWidget()
+        self._ip.setLayout(create_menu_entry("Ip Address: ", ip))
+        layout.addWidget(self._ip)
+
+        # password
+        password = QLineEdit()
+        password.setMaximumWidth(200)
+        self._password = QWidget()
+        self._password.setLayout(create_menu_entry("Password: ", password))
+        layout.addWidget(self._password)
+
+        # player options
+        for index in range(0,3):
+            player_type = QComboBox()
+            player_type.addItems(["Human", "lvl 1 bot", "lvl 2 bot"])
+            player_type.setMaximumWidth(200)
+            self._player_types[index] = QWidget()
+            self._player_types[index].setLayout(create_menu_entry(
+                    "Player " + str(index + 2) + " is a :", player_type))
+            layout.addWidget(self._player_types[index])
+
+        # join button
+        button = QPushButton('Go', self)
+        button.clicked.connect(self.create_game)
+        layout.addWidget(button)
+
+        # back button
+        button = QPushButton('Back to Menu', self)
+        button.clicked.connect(lambda: self._stacked_layout.setCurrentIndex(0))
+        layout.addWidget(button)
+
+        # create layout with stretch to force center the controls
+        hcentered_layout = QHBoxLayout()
+        hcentered_layout.addStretch(1)
+        hcentered_layout.addLayout(layout)
+        hcentered_layout.addStretch(1)
+
+        self._game_options_view.setLayout(hcentered_layout)
+
+    # returns username from the game options screen
+    def get_username(self):
+        return self._username.layout().itemAt(1).widget().text()
+
+    # returns port from the game options screen
+    def get_port(self):
+        return self._port.layout().itemAt(1).widget().value()
+
+    # returns password from the game options screen
+    def get_password(self):
+        return self._password.layout().itemAt(1).widget().text()
+
+    # returns password from the game options screen
+    def get_ip(self):
+        return self._ip.layout().itemAt(1).widget().text()
+
+    # returns player type from the game options screen for given player
+    def get_player_type(self, index):
+        return self._player_types[index].layout().itemAt(1).widget().currentIndex()
 
     # creates game view and adds it to _game_view layout
     def create_game_view(self):
@@ -499,7 +646,7 @@ class Controller(QWidget):
 
         # add teammate info label
         self._player_info[2] = QLabel(self)
-        self._player_info[2].setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignCenter) #TODO fix
+        self._player_info[2].setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignHCenter)
         middle_center_layout.addWidget(self._player_info[2])
 
         # add where the 4 cards will go during play
@@ -827,23 +974,16 @@ class Controller(QWidget):
         QtCore.QTimer.singleShot(after, self.handle_client_input)
 
     # when user presses join
-    def join(self):
-
+    def join(self, port, password, ip, username):
         # communication
         self._parent_conn, child_conn = Pipe()
-
-        # temp details
-        ip = "127.0.0.1"
-        port = "2222"
-        password ="pass"
-        username = "test"
 
         # this call is blocking if the game_loop method is in our controller class!
         self._client = Process(target=Client, args=([ip, port, password, username], child_conn,))
         self._client.start()
 
         # switch to game view
-        self._stacked_layout.setCurrentIndex(1)
+        self._stacked_layout.setCurrentIndex(2)
 
         # check for new data sent by Client in regular intervals
         QtCore.QTimer.singleShot(POLL_DELAY, self.handle_client_input)
@@ -861,19 +1001,40 @@ class Controller(QWidget):
         return None
 
     # when user presses host server
-    def host(self):
-
-        # temp details
-        password = "pass"
-        port = "2222"
-        ptypes = "2022"
-
+    def host(self, port, password, ptypes):
         self.create_server(port, password, ptypes)
 
-    # when user presses the play against bots button
-    def play_bots(self):
-        self.host()
-        self.join()
+    # when user presses the go button
+    def create_game(self):
+
+        # these details are always required details
+        port = str(self.get_port())
+        username = self.get_username()
+
+        #TODO error checking e.g. empty password
+
+        # rest of the details are different for each options type
+        if self._options_type == 0:
+            password = "pass"
+            ptypes = "2022"
+            ip = get_localhost_ip()
+            self.host(port, password, ptypes)
+
+        elif self._options_type == 1:
+            password = self.get_password()
+            ip = self.get_ip()
+
+        elif self._options_type == 2:
+            password = self.get_password()
+            ip = get_localhost_ip()
+            ptypes = ["0"]
+
+            for index in range(0,3):
+                ptypes.append(str(self.get_player_type(index)))
+
+            self.host(port, password, ''.join(ptypes))
+
+        self.join(port, password, ip, username)
 
     # ensure we exit only after cleaning up
     def closeEvent(self, event):
@@ -908,7 +1069,7 @@ class Controller(QWidget):
         self.reset_player_info()
 
         # reset all player details
-        self._player = None
+        self._player = 0
         self._players = None
         self._round = None
         self._cards_played = 0
