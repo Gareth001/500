@@ -267,7 +267,7 @@ class Client():
                 self.send_to_parent({"type" : MsgType.KITTYEND})
                 break
                 
-            elif re.search(r'^You Won!', line):
+            elif re.search(r'^You won!', line):
 
                 # remove everything before the ': '
                 line = re.sub(r'^.*: ', '', line)
@@ -285,8 +285,9 @@ class Client():
                         "remaining" : int(line.split(' ')[1])})
 
                 # get card from parent and send it 
-                ourbet = self.get_from_parent().encode('utf-8')
-                self.send_to_client(ourbet)
+                ourcard = self.get_from_parent().encode('utf-8')
+                print("sending card: " + str(ourcard))
+                self.send_to_client(ourcard)
 
     # joker round
     def joker(self):
@@ -693,9 +694,13 @@ class Controller(QWidget):
         # create card iamges for player
         self._card_layout[0] = QHBoxLayout()
         self._card_layout[0].setAlignment(QtCore.Qt.AlignBottom)
-        for _ in range(0, 10):
+        for index in range(0, 13):
             svgWidget = QtSvg.QSvgWidget('img/BACK.svg')
             svgWidget.setFixedSize(CARD_WIDTH, CARD_HEIGHT)
+
+            if index >= 10:
+                svgWidget.hide()
+
             self._card_layout[0].addWidget(svgWidget)
 
         # add this card layout
@@ -781,6 +786,10 @@ class Controller(QWidget):
             widget = self._card_layout[self._player].itemAt(i).widget()
             widget.load('img/' + card + '.svg')
 
+            # show kitty cards if we are in kitty round
+            if i >= 10:
+                widget.show()
+
             # we only need this set after it is possible to choose a card
             if setEvent:
                 # disable until we are required to send a card
@@ -788,7 +797,11 @@ class Controller(QWidget):
 
                 # note the extra card=card argument to stop each 
                 # lambda using local variable card
-                widget.mouseReleaseEvent = lambda event, card=card: self.send_card(card)
+
+                # if we are in the kitty round, you can't
+                # choose an invalid card, so remove it instantly
+                widget.mouseReleaseEvent = (lambda event, card=card:
+                        self.send_card(card, remove=bool(len(deck) > 10)))
 
     # resets all players hands
     def reset_players_hands(self):
@@ -799,12 +812,19 @@ class Controller(QWidget):
                 widget.load('img/BACK.svg')
                 widget.show()
 
+        # hide kitty cards again
+        for i in range(10, 13):
+            self._card_layout[self._player].itemAt(i).widget().hide()
+
         # reset card layout to what it was before
         self.rearrange_card_layout(-int(self._player)) # int to remove pylint errors
 
-    # sends card to client and also disables all cards from being pressed
-    def send_card(self, card):
+    # sends card to client, optionally remove them
+    def send_card(self, card, remove=False):
         self.send_to_client(card)
+
+        if remove == True:
+            self.remove_card_from_hand(self._player, card)
 
     # toggles card controls
     # supply set to give them a value
@@ -923,6 +943,25 @@ class Controller(QWidget):
                 if MIN_TIME_BETWEEN_MOVES:
                     after = MIN_TIME_BETWEEN_MOVES
                     break
+
+            # update the deck with the kitty cards
+            elif data["type"] is MsgType.KITTYDECK:
+                self._players[self._player]["deck"] = data["deck"]
+                self.update_player_hand(data["deck"], setEvent=True)
+
+            # activate card controls on kitty
+            elif data["type"] is MsgType.KITTYCHOOSE:
+                self.activate_card_controls(set=True)
+
+            # we have to show cards 0 to 9, since these are the ones
+            # updated at game start
+            # also rehide the 10 to 12
+            # note this will have no effect if we didn't win the kitty
+            elif data["type"] is MsgType.KITTYEND:
+                for i in range(0, 10):
+                    self._card_layout[self._player].itemAt(i).widget().show()
+                for i in range(10, 13):
+                    self._card_layout[self._player].itemAt(i).widget().hide()
 
             # update bet (cards are now sorted by suit)
             elif data["type"] is MsgType.GAMESTART:
