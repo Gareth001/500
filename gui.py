@@ -792,9 +792,6 @@ class Controller(QWidget):
 
             # we only need this set after it is possible to choose a card
             if setEvent:
-                # disable until we are required to send a card
-                widget.setEnabled(False)
-
                 # note the extra card=card argument to stop each 
                 # lambda using local variable card
 
@@ -818,6 +815,13 @@ class Controller(QWidget):
 
         # reset card layout to what it was before
         self.rearrange_card_layout(-int(self._player)) # int to remove pylint errors
+
+    # show the players first 10 cards and hide the last 3
+    def reset_player_hand_after_kitty(self):
+        for i in range(0, 10):
+            self._card_layout[self._player].itemAt(i).widget().show()
+        for i in range(10, 13):
+            self._card_layout[self._player].itemAt(i).widget().hide()
 
     # sends card to client, optionally remove them
     def send_card(self, card, remove=False):
@@ -861,7 +865,6 @@ class Controller(QWidget):
         # set player info as waiting
         for index in range(0, 4):
             self._player_info[index].setText("Waiting for player")
-
 
     # change the card layout so that number is the player at the base of the 
     # interface. player 0 is there by default.
@@ -907,6 +910,7 @@ class Controller(QWidget):
                 # we only will add the click event either during choosing the kitty
                 # or when the first round begins
                 self.update_player_hand(data["players"][self._player]["deck"])
+                self.activate_card_controls(set=False)
 
                 # update all info on screen
                 for index in range(0, NUMBER_PLAYERS):
@@ -958,10 +962,7 @@ class Controller(QWidget):
             # also rehide the 10 to 12
             # note this will have no effect if we didn't win the kitty
             elif data["type"] is MsgType.KITTYEND:
-                for i in range(0, 10):
-                    self._card_layout[self._player].itemAt(i).widget().show()
-                for i in range(10, 13):
-                    self._card_layout[self._player].itemAt(i).widget().hide()
+                self.reset_player_hand_after_kitty()
 
             # update bet (cards are now sorted by suit)
             elif data["type"] is MsgType.GAMESTART:
@@ -1017,7 +1018,7 @@ class Controller(QWidget):
         # communication
         self._parent_conn, child_conn = Pipe()
 
-        # this call is blocking if the game_loop method is in our controller class!
+        # this call is blocking if the game loop method is in our controller class!
         self._client = Process(target=Client, args=([ip, port, password, username], child_conn,))
         self._client.start()
 
@@ -1102,10 +1103,15 @@ class Controller(QWidget):
     # reset game variables
     def reset(self):
         # reset all parts of gui
-        self.reset_cards_played()
-        self.reset_bet_controls()
-        self.reset_players_hands()
         self.reset_player_info()
+        self.reset_bet_controls()
+        self.reset_cards_played()
+        self.reset_player_hand_after_kitty()
+        self.activate_card_controls(set=False)
+
+        # the below resets the hand locations, so ensure all card
+        # related resetting done before this
+        self.reset_players_hands() 
 
         # reset all player details
         self._player = 0
