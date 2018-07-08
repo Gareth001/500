@@ -147,8 +147,6 @@ void game_loop(int fileDes) {
 
         // we need to choose the suit for the joker if we are doing no trumps
         // very similar to how kitty round is handled
-        fprintf(stdout, "Choosing joker suit\n");
-
         joker_round(fileDes);
 
         // game begins
@@ -209,6 +207,7 @@ void bet_round(int fileDes) {
 
     while (1) {
         // server will either send bet or info they will print out or betover
+        fflush(stdout);
         read_from_fd(fileDes, result, BUFFER_LENGTH, false);
 
         if (strcmp(result, "bet") == 0) {
@@ -256,6 +255,7 @@ void kitty_round(int fileDes) {
     char* result = malloc(BUFFER_LENGTH * sizeof(char));
 
     while (1) {
+        fflush(stdout);
         read_from_fd(fileDes, result, BUFFER_LENGTH, false); // kitty stuff
 
         if (strcmp(result, "send") == 0) {
@@ -298,6 +298,7 @@ void joker_round(int fileDes) {
     char* result = malloc(BUFFER_LENGTH * sizeof(char));
 
     while (1) {
+        fflush(stdout);
         read_from_fd(fileDes, result, BUFFER_LENGTH, false); // joker stuff
 
         if (strcmp(result, "jokerwant") == 0) {
@@ -354,6 +355,7 @@ void play_round(int fileDes) {
         fprintf(stdout, "%s\n", result);
 
         while (1) {
+            fflush(stdout);
             read_from_fd(fileDes, result, BUFFER_LENGTH, false);
 
             if (strcmp("send", result) == 0) {

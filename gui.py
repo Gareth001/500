@@ -75,13 +75,12 @@ class MsgType(AutoNumberEnum):
     BETOURS = () # our bet {}
     BETFAILED = () # bet failed {message}
     BETWON = () # a player has won the bet {player, bet}
-    KITTYDECK = () # new deck including the kitty {deck} TODO
-    KITTYCHOOSE = () # choose the kitty cards {remaining} TODO
-    KITTYEND = () # kitty end {} TODO
-    JOKERSTART = () # waiting for joker suit {}
-    JOKERCHOOSE = () #TODO
-    JOKERBAD = () #TODO
-    JOKERCHOSEN = () #TODO
+    KITTYDECK = () # new deck including the kitty {deck} 
+    KITTYCHOOSE = () # choose the kitty cards {remaining} 
+    KITTYEND = () # kitty end {} 
+    JOKERSTART = () # waiting for joker suit {} 
+    JOKERCHOOSE = () # send a suit for the joker {} 
+    JOKERDONE = () # joker suit was chosen {suit} 
     GAMESTART = () # game is starting {deck}
     ROUNDNEW = () # new round starting {round}
     ROUNDCARDPLAYED = () # card played {player, card, winningplayer, winningcard}
@@ -265,6 +264,7 @@ class Client():
             if line == 'Kitty finished':
                 # tell parent kitty is finished
                 self.send_to_parent({"type" : MsgType.KITTYEND})
+                self.joker()
                 break
                 
             elif re.search(r'^You won!', line):
@@ -275,7 +275,7 @@ class Client():
                 # this line contains our new hand
                 # send the server this new deck (note it's sorted so send it all)
                 self.send_to_parent({"type" : MsgType.KITTYDECK,
-                        "deck" : line.split()})
+                        "deck" : line.split(' ')})
 
             elif re.search(r'^Pick ', line):
 
@@ -296,10 +296,26 @@ class Client():
         while True:
             line = self.read_line()
 
-            # TODO functionality for No Trumps
+            # we are waiting for another player to choose joker
+            if line == "Choosing joker suit":
+                self.send_to_parent({"type" : MsgType.JOKERSTART})
+
+            elif line == "Choose joker suit: ":
+                self.send_to_parent({"type" : MsgType.JOKERCHOOSE})
+
+                # get suit from parent and send it 
+                suit = self.get_from_parent().encode('utf-8')
+                print("sending suit: " + str(suit))
+                self.send_to_client(suit)
+
+            elif re.search(r'^Joker suit chosen.', line):
+                #Joker suit chosen. It is a S
+                # last word is the suit chosen
+                self.send_to_parent({"type" : MsgType.JOKERDONE,
+                        "suit" : line.split(' ')[-1]})
 
             # joker round ends, goto game loop
-            if line == "Game Begins":
+            elif line == "Game Begins":
                 self.play()
 
     # play round
@@ -395,13 +411,9 @@ class Client():
             elif line == 'Betting round starting':
                 self.bet_round()
 
-            # kitty choosing round
+            # kitty choosing round -> joker -> play
             elif line == 'Waiting for Kitty':
                 self.kitty()
-
-            # choose joker suit (note this leads to play)
-            elif line == "Choosing joker suit":
-                self.joker()
 
 # not a traditional MVC application, the model is run on a different process and 
 # interacts with the controller through a pipe
@@ -957,15 +969,43 @@ class Controller(QWidget):
             elif data["type"] is MsgType.KITTYCHOOSE:
                 self.activate_card_controls(set=True)
 
-            # we have to show cards 0 to 9, since these are the ones
-            # updated at game start
-            # also rehide the 10 to 12
-            # note this will have no effect if we didn't win the kitty
-            elif data["type"] is MsgType.KITTYEND:
-                self.reset_player_hand_after_kitty()
+            # we are required to choose a joker suit
+            elif data["type"] is MsgType.JOKERCHOOSE:
+
+                # create message box with suit choices
+                msg = QMessageBox()
+                msg.setWindowTitle('500')
+                msg.setText('Choose a joker suit.')
+                msg.addButton(QPushButton('Spades'), QMessageBox.YesRole)
+                msg.addButton(QPushButton('Clubs'), QMessageBox.YesRole)
+                msg.addButton(QPushButton('Diamonds'), QMessageBox.YesRole)
+                msg.addButton(QPushButton('Hearts'), QMessageBox.YesRole)
+                ret = msg.exec_()
+
+                # send our chosen suit to the client
+                if ret == 0:
+                    ret = "S"
+                elif ret == 1:
+                    ret = "C"
+                elif ret == 2:
+                    ret = "D"
+                elif ret == 3:
+                    ret = "H"
+
+                self.send_to_client(ret)
+
+            # waiting on another player to choose joker suit
+            elif data["type"] is MsgType.JOKERSTART:
+                QMessageBox.information(self, '500', "A player is choosing joker suit.")
+
+            # joker suit chosen
+            elif data["type"] is MsgType.JOKERDONE:
+                QMessageBox.information(self, '500', "The joker is a " +
+                        letter_to_suit(data["suit"]) + ".")
 
             # update bet (cards are now sorted by suit)
             elif data["type"] is MsgType.GAMESTART:
+                self.reset_player_hand_after_kitty()
                 self._players[self._player]["deck"] = data["deck"]
                 self.update_player_hand(data["deck"], setEvent=True)
 
@@ -1040,39 +1080,48 @@ class Controller(QWidget):
         
         return None
 
-    # when user presses host server
-    def host(self, port, password, ptypes):
-        self.create_server(port, password, ptypes)
-
     # when user presses the go button
     def create_game(self):
 
         # these details are always required details
         port = str(self.get_port())
-        username = self.get_username()
+        if port == "":
+            QMessageBox.information(self, '500', "Please enter a port")
+            return
 
-        #TODO error checking e.g. empty password
+        username = self.get_username()
+        if username == "":
+            QMessageBox.information(self, '500', "Please enter a username")
+            return
 
         # rest of the details are different for each options type
         if self._options_type == 0:
             password = "pass"
             ptypes = "2022"
             ip = get_localhost_ip()
-            self.host(port, password, ptypes)
+            self.create_server(port, password, ptypes)
 
-        elif self._options_type == 1:
+        else:
+            # get password for next 2 cases
             password = self.get_password()
-            ip = self.get_ip()
+            if password == "":
+                QMessageBox.information(self, '500', "Please enter a password")
+                return
 
-        elif self._options_type == 2:
-            password = self.get_password()
-            ip = get_localhost_ip()
-            ptypes = ["0"]
+            if self._options_type == 1:
+                ip = self.get_ip()
+                if ip == "":
+                    QMessageBox.information(self, '500', "Please enter an IP address")
+                    return
 
-            for index in range(0,3):
-                ptypes.append(str(self.get_player_type(index)))
+            elif self._options_type == 2:
+                ip = get_localhost_ip()
+                ptypes = ["0"]
 
-            self.host(port, password, ''.join(ptypes))
+                for index in range(0,3):
+                    ptypes.append(str(self.get_player_type(index)))
+
+                self.create_server(port, password, ''.join(ptypes))
 
         self.join(port, password, ip, username)
 

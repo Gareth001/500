@@ -534,6 +534,13 @@ void joker_round(GameInfo* game) {
 
         }
 
+        // we only want to tell the other players that they are waiting for joker
+        if (playerWithJoker != -1) {
+            // tell them we are waiting on a joker suit
+            send_to_all_except("Choosing joker suit\n", game, playerWithJoker);
+
+        }
+
         // get suit from user, assuming a player has the joker
         while (playerWithJoker != -1) {
 
