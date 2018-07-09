@@ -27,8 +27,14 @@ NUMBER_PLAYERS = 4
 MIN_TIME_BETWEEN_MOVES = 1000 # min number of milliseconds to wait until a move is completed
 
 # returns string representation of a bet
-# TODO: Misere
 def string_to_bet(string):
+
+    if string.upper() == 'MISERE':
+        return 'Misere'
+
+    if string.upper() == 'OPENMISERE':
+        return 'Open Misere'
+
     if string == 'PASS':
         return 'Pass'
 
@@ -459,7 +465,6 @@ class Controller(QWidget):
         self._played_cards = None # four cards in center of screen
         self._player_info = [None] * NUMBER_PLAYERS # info label for each player
         self._bet_controls = []
-        self._bet_label = None
         self.create_game_view()
 
         # create stacked layout
@@ -752,21 +757,19 @@ class Controller(QWidget):
         layout.addWidget(button)
         self._bet_controls.append(button)
 
-        # misere button (TODO functionality)
+        # misere button
         button = QPushButton('Bet Misere', self)
+        button.clicked.connect(lambda: self.send_to_client("MISERE"))
         layout.addWidget(button)
         self._bet_controls.append(button)
 
-        # open misere button (TODO functionality)
+        # open misere button (TODO functionality, such as seeing persons hand)
         button = QPushButton('Bet Open Misere', self)
+        button.clicked.connect(lambda: self.send_to_client("OPENMISERE"))
         layout.addWidget(button)
         self._bet_controls.append(button)
 
-        # bet error message
-        self._bet_label = QLabel(self)
-        self._bet_label.setFixedWidth(200)
-        # TODO set to red text
-        layout.addWidget(self._bet_label)
+        layout.addStretch(1)
 
         # main menu button
         button = QPushButton('Exit to menu', self)
@@ -936,7 +939,6 @@ class Controller(QWidget):
             elif data["type"] is MsgType.BETINFO:
                 # reset error text and disable bet controls if this was us
                 if data["player"] == self._player:
-                    self._bet_label.setText("")
                     self.activate_bet_controls(set=False)
 
                 # add betting text
@@ -950,7 +952,7 @@ class Controller(QWidget):
 
             # display why the users bet failed
             elif data["type"] is MsgType.BETFAILED:
-                self._bet_label.setText(data["message"])
+                QMessageBox.information(self, '500', data["message"])
 
             # disable controls after betting is done
             elif data["type"] is MsgType.BETWON:
@@ -1085,8 +1087,8 @@ class Controller(QWidget):
 
         # these details are always required details
         port = str(self.get_port())
-        if port == "":
-            QMessageBox.information(self, '500', "Please enter a port")
+        if port == "" or port == "0":
+            QMessageBox.information(self, '500', "Please enter a valid port")
             return
 
         username = self.get_username()
@@ -1097,7 +1099,7 @@ class Controller(QWidget):
         # rest of the details are different for each options type
         if self._options_type == 0:
             password = "pass"
-            ptypes = "2022"
+            ptypes = "0222"
             ip = get_localhost_ip()
             self.create_server(port, password, ptypes)
 

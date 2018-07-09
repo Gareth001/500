@@ -657,6 +657,17 @@ void play_round(GameInfo* game) {
 
             }
 
+            // if during misere, if the next player is the teammate and
+            // they are the last player then this will be the last
+            // card played for the round, we want plays to be 3 in this case
+            if (game->misere == true &&
+                    (game->p + 1) % NUM_PLAYERS == (game->betWinner + 2) % NUM_PLAYERS
+                && plays == 2) {
+
+                plays++;
+
+            }
+
             // current card from player (or bot)
             Card card = get_valid_card_from_player(game, NUM_ROUNDS - rounds);
 
