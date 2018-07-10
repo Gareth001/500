@@ -8,7 +8,7 @@
 * Fully implemented 500 functionality, such as enforcing following suit, misere and scoring
 * Play with or against bots! Or even watch 4 bots battle it out! Similar in difficulty to an average 500 player
 * 500 is now multiplatform!
-* You can now play 500 with a GUI! Wraps the command line interface with pretty cards and nice layouts, created in Qt
+* You can now play 500 with a GUI! Internally uses the command line interface with pretty cards and nice layouts, created in Qt
 
 ## Playing with the GUI
 To play with the GUI, you need to have python3.5 (tested on Windows + Linux) or python3.6. Required dependencies are [PyQt5](https://pypi.org/project/PyQt5/) and [aenum](https://pypi.org/project/aenum/), which can be installed through using pip3. You also need the compiled server and client applications in the same directory as gui.py (See Compiling). Note that precompiled binaries for Windows can be found under the [releases page](https://github.com/Gareth001/500/releases), also containing the gui. Simply run gui.py with python 3 to start playing once the above is done.

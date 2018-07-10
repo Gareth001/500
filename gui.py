@@ -93,6 +93,7 @@ class MsgType(AutoNumberEnum):
     ROUNDCHOOSE = () # send a card please {}
     ROUNDWON = () # round has been won {player, card, winningplayer, winningcard, bettingteamroundswon}
     ROUNDBAD = () # bad card sent {message}
+    GAMEOVER = () # end of game {}
 
 # returns a QHBoxLayout containing text and widget
 def create_menu_entry(text, widget):
@@ -179,10 +180,9 @@ class Client():
             name = re.sub(r' \(Teammate\)$', '', name)
 
             self._players.append({"name" : name})
-
-        # next line is always 'Game starting!'
-        self.read_line()
         
+    # get deck data and send game starting to parent
+    def get_deck_data(self):
         # our deck is next
         deck = self.read_line()
 
@@ -250,9 +250,10 @@ class Client():
                 # send message to our client
                 self.send_to_client(ourbet)
 
-            elif bet == 'Everyone passed. Game restarting.':
-                # TODO case everyone passed
-                print('everyone passed, disaster!')
+            # restart game if everyone passed
+            elif bet == 'Game starting!':
+                self.get_deck_data()
+                return
 
             # bet was a failure (i.e. bet too low)
             else:
@@ -323,6 +324,7 @@ class Client():
             # joker round ends, goto game loop
             elif line == "Game Begins":
                 self.play()
+                return
 
     # play round
     def play(self):
@@ -345,7 +347,7 @@ class Client():
                         "round" : int(line.split(' ')[1])})
 
             # player won the bet
-            elif re.search(r'won', line):
+            elif re.search(r'won', line) and re.search(r'Player', line):
                 # remove player
                 line = re.sub(r'Player ', '', line)
 
@@ -387,7 +389,14 @@ class Client():
             elif line == '':
                 continue
 
-            # TODO cases for restarting game
+            # game is restarting
+            elif line == 'Game starting!':
+                self.get_deck_data()
+                return
+            
+            # game is ending
+            elif line == 'Game over!':
+                self.send_to_parent({"type" : MsgType.GAMEOVER})
 
             # error betting
             else:
@@ -412,6 +421,10 @@ class Client():
             # giving all player details now
             elif line == 'Players Connected:':
                 self.get_game_data()
+
+            # getting player deck details
+            elif line == 'Game starting!':
+                self.get_deck_data()
 
             # betting round
             elif line == 'Betting round starting':
@@ -917,6 +930,12 @@ class Controller(QWidget):
                 self._player = data["player"]
                 self._players = data["players"]
 
+                # reset details in case we are restarting
+                self.reset_players_hands()
+                self.reset_player_info()
+                self.reset_cards_played()
+                self.reset_bet_controls()
+
                 # we want to arrange the self._card_layout indexes so that 
                 # index 0 becomes the new index self._player.
                 self.rearrange_card_layout(self._player)
@@ -1051,6 +1070,12 @@ class Controller(QWidget):
                 if MIN_TIME_BETWEEN_MOVES:
                     after = MIN_TIME_BETWEEN_MOVES
                     break
+
+            # game over
+            elif data["type"] is MsgType.GAMEOVER:
+                QMessageBox.information(self, '500', "Game over!")
+                self.exit_to_menu()
+                return
 
         # repeat 
         QtCore.QTimer.singleShot(after, self.handle_client_input)
