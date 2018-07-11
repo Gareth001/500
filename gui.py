@@ -8,7 +8,7 @@ from multiprocessing import Process, Pipe
 from PyQt5.QtWidgets import (QApplication, QWidget, QPushButton, QLayout,
         QStackedWidget, QFormLayout, QHBoxLayout, QComboBox, QLabel, QVBoxLayout,
         QMessageBox, QSpinBox, QLineEdit)
-from PyQt5 import QtCore, QtSvg # pip3 install pyqt5
+from PyQt5 import QtCore, QtSvg, QtGui # pip3 install pyqt5
 
 # 500 GUI created with PyQt. Acts as a wrapper for the client and server
 # previously created in c. Creates a server and runs the client
@@ -17,7 +17,7 @@ from PyQt5 import QtCore, QtSvg # pip3 install pyqt5
 # and get input from the user.
 
 WIDTH = 830
-HEIGHT = 900
+HEIGHT = 880
 CARD_WIDTH = 50 * 1.5 # width of card as it appears on the screen
 CARD_HEIGHT = 73 * 1.5
 BUFFER_LENGTH = 100 # length of buffer for client process
@@ -363,8 +363,8 @@ class Client():
                         "winningcard" : line[1].split(' ')[-1], 
                         "bettingteamroundswon" : int(line2.split(' ')[4])})   
 
-            # player played a card
-            elif re.search(r'Player ', line):
+            # player played a card (note 'hand' in rare open misere case)
+            elif re.search(r'Player ', line) and not re.search(r'hand', line):
 
                 # remove player
                 line = re.sub(r'Player ', '', line)
@@ -458,6 +458,19 @@ class Controller(QWidget):
         self.setGeometry(50, 50, WIDTH, HEIGHT)
         self.setFixedSize(self.size())
 
+        # check for background image
+        if os.path.exists("bkg.jpg"):
+            bg = QtGui.QPixmap("bkg.jpg")
+            palette = QtGui.QPalette()
+            palette.setBrush(10, QtGui.QBrush(bg))
+            self.setPalette(palette)
+
+        else:
+            print("No background image found. Copy bkg.jpg to the directory to add one.")
+
+        # default font
+        self.setFont(QtGui.QFont("Book Antiqua", 11, QtGui.QFont.Bold))
+
         # create main menu
         self._main_menu = QWidget()
         self.create_main_menu_view()
@@ -478,6 +491,7 @@ class Controller(QWidget):
         self._played_cards = None # four cards in center of screen
         self._player_info = [None] * NUMBER_PLAYERS # info label for each player
         self._bet_controls = []
+        self._card_winning = None
         self.create_game_view()
 
         # create stacked layout
@@ -490,6 +504,42 @@ class Controller(QWidget):
 
     # create main menu and add it to _main_menu layout
     def create_main_menu_view(self):
+
+        menu = QVBoxLayout()
+        menu.setAlignment(QtCore.Qt.AlignHCenter)
+        menu.addStretch(1)
+
+        # create a pretty title layout
+        title_layout = QHBoxLayout()
+        title_layout.addStretch(1)
+
+        # add some bowers for nice looks
+        svgWidget = QtSvg.QSvgWidget('img/JH.svg')
+        svgWidget.setMinimumHeight(CARD_HEIGHT)
+        svgWidget.setMaximumHeight(CARD_HEIGHT)
+        svgWidget.setMinimumWidth(CARD_WIDTH)
+        svgWidget.setMaximumWidth(CARD_WIDTH)
+        title_layout.addWidget(svgWidget)
+        title_layout.addStretch(1)
+
+        # create title
+        title = QLabel("500 Online!")
+        font = QtGui.QFont("Book Antiqua", 50, QtGui.QFont.Bold)
+        title.setFont(font)
+        title_layout.addWidget(title)
+        title_layout.addStretch(1)
+
+        svgWidget = QtSvg.QSvgWidget('img/JD.svg')
+        svgWidget.setMinimumHeight(CARD_HEIGHT)
+        svgWidget.setMaximumHeight(CARD_HEIGHT)
+        svgWidget.setMinimumWidth(CARD_WIDTH)
+        svgWidget.setMaximumWidth(CARD_WIDTH)
+        title_layout.addWidget(svgWidget)
+
+        title_layout.addStretch(1)
+        menu.addLayout(title_layout)
+        menu.addStretch(1)
+
         # create layout
         layout = QVBoxLayout()
         layout.setAlignment(QtCore.Qt.AlignCenter)
@@ -509,17 +559,25 @@ class Controller(QWidget):
         button.clicked.connect(lambda: self.goto_game_options(2))
         layout.addWidget(button)
 
-        # options
-        button = QPushButton('Options', self)
-        layout.addWidget(button)
+        # options TODO 
+        # button = QPushButton('Options', self)
+        # layout.addWidget(button)
 
         # exit
         button = QPushButton('Exit', self)
         button.clicked.connect(self.close)
         layout.addWidget(button)
 
+        menu.addLayout(layout)
+        menu.addStretch(2)
+
+        # title = QLabel("By Gareth Booth") TODO 
+        # font = QtGui.QFont("Book Antiqua", 8, QtGui.QFont.Bold)
+        # title.setFont(font)
+        # menu.addWidget(title)
+
         # add to layout
-        self._main_menu.setLayout(layout)
+        self._main_menu.setLayout(menu)
 
     # go to the game options screen
     # type is which screen button you came from:
@@ -680,15 +738,35 @@ class Controller(QWidget):
         self._player_info[2].setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignHCenter)
         middle_center_layout.addWidget(self._player_info[2])
 
+        middle_center_layout.addStretch(1)
+
         # add where the 4 cards will go during play
         self._played_cards = QHBoxLayout()
         for _ in range(0, NUMBER_PLAYERS):
+
+            # layout containing this tricks details
+            sublayout = QVBoxLayout()
+            sublayout.setAlignment(QtCore.Qt.AlignVCenter)
+
+            # text 
+            top_text = QLabel()
+            sublayout.addWidget(top_text)
+
+            # card image
             svgWidget = QtSvg.QSvgWidget('img/BACK.svg')
             svgWidget.setFixedSize(CARD_WIDTH, CARD_HEIGHT)
-            self._played_cards.addWidget(svgWidget)
-            
+            sublayout.addWidget(svgWidget)
+
+            # text
+            bottom_text = QLabel()
+            sublayout.addWidget(bottom_text)
+
+            self._played_cards.addLayout(sublayout)
+
         # add this card layout
         middle_center_layout.addLayout(self._played_cards)
+
+        middle_center_layout.addStretch(1)
 
         # add player info label
         self._player_info[0] = QLabel(self)
@@ -880,14 +958,34 @@ class Controller(QWidget):
     # resets the cards played interface
     def reset_cards_played(self):
         self._cards_played = 0
+
+        # reset image and text
         for i in range (0, self._played_cards.count()):
-            self._played_cards.itemAt(i).widget().load('img/BACK.svg')
+            self._played_cards.itemAt(i).layout().itemAt(0).widget().setText("")
+            self._played_cards.itemAt(i).layout().itemAt(1).widget().load('img/BACK.svg')
+
+        self.reset_card_winning()
+
+    # reset the winning text
+    def reset_card_winning(self):
+        for i in range (0, self._played_cards.count()):
+            self._played_cards.itemAt(i).layout().itemAt(2).widget().setText("")
 
     # adds the card to the center
-    def add_card_played(self, card):
-        self._played_cards.itemAt(self._cards_played).widget().load('img/' + card + '.svg')
-        self._cards_played += 1
+    def add_card_played(self, card, player, winning):
+        self._played_cards.itemAt(self._cards_played).layout().\
+                itemAt(0).widget().setText("Player " + str(player + 1))
+        self._played_cards.itemAt(self._cards_played).layout().\
+                itemAt(1).widget().load('img/' + card + '.svg')
+                
+        # update winning text
+        if winning:
+            self.reset_card_winning()
+            self._played_cards.itemAt(self._cards_played).layout().\
+                    itemAt(2).widget().setText("WINNING")
 
+        self._cards_played += 1
+    
     # reset player info
     def reset_player_info(self):
         # set player info as waiting
@@ -920,6 +1018,15 @@ class Controller(QWidget):
         if self._parent_conn == None:
             return
 
+        # attempt to poll
+        try:
+            self._parent_conn.poll()
+        except:
+            # if we cannot poll it is because we could not connect to the server
+            QMessageBox.information(self, '500', "Failed to connect")
+            self.exit_to_menu()
+            return
+
         # repeatedly poll if we have input from Client
         while self._parent_conn.poll():
             data = self.recieve_from_client()
@@ -948,7 +1055,8 @@ class Controller(QWidget):
 
                 # update all info on screen
                 for index in range(0, NUMBER_PLAYERS):
-                    self._player_info[index].setText(data["players"][index]["name"] + os.linesep)
+                    self._player_info[index].setText(str(index + 1) + ": " +
+                            data["players"][index]["name"] + os.linesep)
 
             # enable bet controls on our bet
             elif data["type"] is MsgType.BETOURS:
@@ -1045,9 +1153,12 @@ class Controller(QWidget):
                 # remove card from the hand
                 self.activate_card_controls(set=False)
                 self.remove_card_from_hand(data["player"], data["card"])
-                    
-                # play card to self._played_cards
-                self.add_card_played(data["card"])
+
+                # play card to self._played_cards, updating winning text
+                # if the winning card is different
+                self.add_card_played(data["card"], data["player"], 
+                        bool(self._card_winning != data["winningcard"]))
+                self._card_winning = data["winningcard"]
 
                 # only have a break if we are not next
                 if MIN_TIME_BETWEEN_MOVES and \
@@ -1066,7 +1177,10 @@ class Controller(QWidget):
                 self.remove_card_from_hand(data["player"], data["card"])
 
                 # play card to self._played_cards
-                self.add_card_played(data["card"])
+                self.add_card_played(data["card"], data["player"], 
+                        bool(self._card_winning != data["winningcard"]))
+                self._card_winning = None
+
                 if MIN_TIME_BETWEEN_MOVES:
                     after = MIN_TIME_BETWEEN_MOVES
                     break
@@ -1137,10 +1251,24 @@ class Controller(QWidget):
 
             if self._options_type == 1:
                 ip = self.get_ip()
-                if ip == "":
-                    QMessageBox.information(self, '500', "Please enter an IP address")
-                    return
 
+                # check if ip is valid, ensure it is seperated by 4 dots and 
+                # all are numbers between 0 and 255
+                check = ip.split('.')
+                error = 0
+
+                if len(check) == 4:
+                    for index in range(0, 4):
+                        if (check[index].isnumeric() == True
+                                and int(check[index]) >= 0
+                                and int(check[index]) < 256):
+                            
+                            error += 1
+
+                if error != 4:
+                    QMessageBox.information(self, '500', "Please enter a valid IP address")
+                    return
+                
             elif self._options_type == 2:
                 ip = get_localhost_ip()
                 ptypes = ["0"]
