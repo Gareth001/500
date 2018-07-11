@@ -1,3 +1,4 @@
+
 500 Card Game Online
 =======
 
@@ -11,7 +12,13 @@
 * You can now play 500 with a GUI! Internally uses the command line interface with pretty cards and nice layouts, created in Qt
 
 ## Playing with the GUI
-To play with the GUI, you need to have python3.5 (tested on Windows + Linux) or python3.6. Required dependencies are [PyQt5](https://pypi.org/project/PyQt5/) and [aenum](https://pypi.org/project/aenum/), which can be installed through using pip3. You also need the compiled server and client applications in the same directory as gui.py (See Compiling). Note that precompiled binaries for Windows can be found under the [releases page](https://github.com/Gareth001/500/releases), also containing the gui. Simply run gui.py with python 3 to start playing once the above is done.
+![alt text](https://github.com/Gareth001/500/blob/master/example.jpg "Sample in game screenshot")
+
+To play with the GUI, you need to have python3.5 or python3.6 (tested on Windows and Linux).  Required dependencies are [PyQt5](https://pypi.org/project/PyQt5/) and [aenum](https://pypi.org/project/aenum/), which can be installed with `pip3 install aenum` followed by `pip3 install PyQt5`.
+
+To use precompiled binaries on Windows, download `precompiled-windows.zip` from the [releases page](https://github.com/Gareth001). Extract and run gui.py with python3 to play. To compile yourself, see Compiling below.
+
+To play on linux or mac, clone the repository, compile client and server (See compiling) and then use `python3 gui.py`.
 
 ## Compiling
 Requires at least `gcc` and `make`. Can be compiled on Windows with MinGW + MSYS.
@@ -44,4 +51,4 @@ Note: Server requires no input after starting.
 ## Rules
 Australian rules, see https://www.pagat.com/euchre/500.html#oz4hand
 ## Credit
-GUI is stil under development, and uses cards obtained from https://code.google.com/archive/p/vector-playing-cards/.
+GUI uses cards minified versions of cards obtained from https://code.google.com/archive/p/vector-playing-cards/.
