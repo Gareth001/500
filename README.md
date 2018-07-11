@@ -20,6 +20,8 @@ To use precompiled binaries on Windows, download `precompiled-windows.zip` from 
 
 To play on linux or mac, clone the repository, compile client and server (See compiling) and then use `python3 gui.py`.
 
+Note: background image is not included, but include bkg.jpg into the directory to add your own.
+
 ## Compiling
 Requires at least `gcc` and `make`. Can be compiled on Windows with MinGW + MSYS.
 1. Download and unzip the latest release from the [releases page](https://github.com/Gareth001/500/releases)
