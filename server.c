@@ -461,9 +461,10 @@ void kitty_round(GameInfo* game) {
     // prepare string to send to the winner and send it
     char* message = malloc(BUFFER_LENGTH * sizeof(char));
     message[0] = '\0';
-    sprintf(message, "You won! Pick 3 cards to discard: %s\n",
-            return_hand(game->player[game->p].deck, NUM_ROUNDS + 3));
+    char* hand = return_hand(game->player[game->p].deck, NUM_ROUNDS + 3);
+    sprintf(message, "You won! Pick 3 cards to discard: %s\n", hand);
     send_to_player(game->p, game, message);
+    free(hand);
 
     // get rid of the extra 3 cards
     if (game->player[game->p].bot == 0) {
@@ -622,10 +623,11 @@ void play_round(GameInfo* game) {
         // if so send all players the bet winners hand
         if (game->open == true) {
             message[0] = '\0';
-            sprintf(message, "Player %d's hand: %s\n", game->betWinner,
-                    return_hand(game->player[game->betWinner].deck,
-                    NUM_ROUNDS - rounds));
+            char* hand = return_hand(game->player[game->betWinner].deck,
+                    NUM_ROUNDS - rounds);
+            sprintf(message, "Player %d's hand: %s\n", game->betWinner, hand);
             send_to_all_except(message, game, game->betWinner);
+            free(hand);
 
         }
 
@@ -683,19 +685,24 @@ void play_round(GameInfo* game) {
 
             }
 
+            // must free result from return card
+            char* played = return_card(card);
+            char* winning = return_card(game->winner);
+
             // send all the details of the move, who's winning / won.
             if (++plays == NUM_PLAYERS) {
                 sprintf(message, "Player %d played %s. Player %d won with %s\n",
-                        game->p, return_card(card), game->win,
-                        return_card(game->winner));
+                        game->p, played, game->win, winning);
 
             } else {
                 sprintf(message,
                         "Player %d played %s. Player %d winning with %s\n",
-                        game->p, return_card(card), game->win,
-                        return_card(game->winner));
+                        game->p, played, game->win, winning);
 
             }
+            
+            free(played);
+            free(winning);
 
             send_to_all(message, game);
             fprintf(stdout, "%s", message);
@@ -1134,8 +1141,10 @@ void send_deck_to_all(int cards, GameInfo* game) {
     char* message = malloc(BUFFER_LENGTH * sizeof(char));
     for (int i = 0; i < NUM_PLAYERS; i++) {        
         if (game->player[i].bot == 0) {
-            sprintf(message, "%s\n", return_hand(game->player[i].deck, cards));
+            char* hand = return_hand(game->player[i].deck, cards);
+            sprintf(message, "%s\n", hand);
             send_to_player(i, game, message);
+            free(hand);
 
         }
 

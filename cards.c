@@ -54,7 +54,7 @@ Card* create_deck() {
 
 }
 
-// returns a human readable representation of the card
+// returns a human readable representation of the card. free return value
 char* return_card(Card card) {
 
     // get rid of joker case first
@@ -195,14 +195,16 @@ Card return_card_from_string(char* card) {
 }
 
 // returns a string representation of a users hand, each card seperated
-// by a single space
+// by a single space. must free result
 char* return_hand(Card* cards, int num) {
 
     char* message = malloc(num * 4 * sizeof(char));
     message[0] = '\0';
 
     for (int i = 0; i < num; i++) {
-        strcat(message, return_card(cards[i]));
+        char* card = return_card(cards[i]);
+        strcat(message, card);
+        free(card);
         if (i < num - 1) {
             strcat(message, " ");
 
@@ -214,7 +216,7 @@ char* return_hand(Card* cards, int num) {
 
 }
 
-// returns a character representing the trump.
+// returns a character representing the trump, N is the default case.
 char return_trump_char(Trump trump) {
     switch (trump) {
         case SPADES:
@@ -237,6 +239,7 @@ char return_trump_char(Trump trump) {
 }
 
 // returns a number representing the trump's character.
+// DEFAULT_SUIT if bad input
 Trump return_trump(char trump) {
     switch (trump) {
         case 'S':
@@ -398,7 +401,7 @@ int compare_cards(Card a, Card b, Trump trump) {
     Card first = a;
     Card second = b;
 
-    // deal with bowers now. only in no trumps
+    // deal with bowers now. not in no trumps
     if (trump != NOTRUMPS) {
         first = handle_bower(a, trump);
         second = handle_bower(b, trump);
@@ -427,6 +430,7 @@ int compare_cards(Card a, Card b, Trump trump) {
 
 // returns false if the deck contains a card of suit lead and card isn't of
 // suit lead. returns true otherwise. trump is the games trump
+// card is the card that we played
 bool correct_suit_player(Card card, Card* deck, Trump lead, Trump trump,
         int rounds) {
     // if they are playing a card from the leading suit, it's fine

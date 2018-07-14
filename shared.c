@@ -32,8 +32,10 @@ int write_new(int fileDes, char* buffer, int length) {
 
 }
 
-// reads from the fileDes until the newline character is found,
-// and then writes this to the buffer
+// reads from the fileDes until the newline character is found 
+// (or length is met), and then writes this to the buffer.
+// if newline is true, newline is returned with string, otherwise it is not.
+// remember to free result.
 char* read_from_fd(int fileDes, char* buffer, int length, bool newline) {
 
     char* charBuffer = malloc(sizeof(char));

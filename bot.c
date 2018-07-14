@@ -381,6 +381,11 @@ Card get_card_from_bot(GameInfo* game, int cards) {
 
     }
 
+    // clean up
+    for (int i = 0; i < 4; i++) {
+        free(deckSplit[i]);
+
+    }
     free(deckSplit);
     free(suitCount);
     
@@ -473,7 +478,12 @@ Card get_lowest_non_trump_card(GameInfo* game, int cards) {
         card = deckSplit[game->suit][suitCount[game->suit] - 1];
 
     }
+    
+    // clean up
+    for (int i = 0; i < 4; i++) {
+        free(deckSplit[i]);
 
+    }
     free(deckSplit);
     free(suitCount);
 
