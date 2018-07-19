@@ -59,10 +59,14 @@ char* return_card(Card card) {
 
     // get rid of joker case first
     if (card.value == JOKER_VALUE) {
-        return "JOKER";
+        // ensure we return something we can free to simplify return value
+        char* ret = malloc(6 * sizeof(char));
+        strcpy(ret, "JOKER");
+        return ret;
+        
     }
 
-    char* ret = malloc(3 * sizeof(char));
+    char* ret = malloc(4 * sizeof(char));
 
     // get card value
     if (card.value <= 9) {
@@ -370,7 +374,7 @@ void sort_deck(Card** deck, int cards, Trump trump, Trump jokerSuit) {
 
 // returns true if deck has the joker, false otherwise.
 bool deck_has_joker(Card* deck) {
-    for (int i = 0; i < 13; i++) {
+    for (int i = 0; i < 10; i++) {
         if (deck[i].value == JOKER_VALUE) {
             return true;
 

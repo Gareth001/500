@@ -395,6 +395,7 @@ void bet_round(GameInfo* game) {
             // send the bet to everyone
             fprintf(stdout, "%s", send);
             send_to_all(send, game);
+            free(send);
 
         }
 
@@ -1014,7 +1015,6 @@ char* get_valid_bet_from_player(GameInfo* game, char* send, int* pPassed) {
 
 // loop until we get a valid card from the user or bot, returns this card
 Card get_valid_card_from_player(GameInfo* game, int cards) {
-    char* buffer = malloc(BUFFER_LENGTH * sizeof(char));
 
     while (1) {
 
@@ -1025,8 +1025,10 @@ Card get_valid_card_from_player(GameInfo* game, int cards) {
             send_to_player(game->p, game, "send\n");
 
             // get card from user
+            char* buffer = malloc(BUFFER_LENGTH * sizeof(char));
             get_message_from_player(buffer, game);
             card = return_card_from_string(buffer);
+            free(buffer);
 
         } else {
             // get card from bot
