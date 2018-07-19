@@ -337,7 +337,7 @@ Card bot_no_trumps_or_lead(GameInfo* game, Card** deckSplit, int* suitCount) {
 
 }
 
-// returns card that this bot has played
+// returns card that this bot has played and removes it from their hand
 Card get_card_from_bot(GameInfo* game, int cards) {
 
     // we note that our deck is sorted already, split deck into suits
